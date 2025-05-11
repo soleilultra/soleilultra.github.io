@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>位置评级可视化系统</title>
     <style>
@@ -13,17 +13,20 @@
             flex-direction: column;
             height: 100vh;
         }
+
         .header {
             background-color: #f8f9fa;
             padding: 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             z-index: 100;
         }
+
         .container {
             display: flex;
             flex: 1;
             overflow: hidden;
         }
+
         .sidebar {
             width: 300px;
             background-color: #f8f9fa;
@@ -31,14 +34,17 @@
             overflow-y: auto;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
         }
+
         .map-container {
             flex: 1;
             position: relative;
         }
+
         #map {
             height: 100%;
             width: 100%;
         }
+
         button {
             padding: 8px 15px;
             margin: 5px;
@@ -47,25 +53,46 @@
             cursor: pointer;
             font-size: 14px;
         }
+
         .primary-btn {
             background-color: #4CAF50;
             color: white;
         }
+
         .danger-btn {
             background-color: #f44336;
             color: white;
         }
+
         .info-btn {
             background-color: #2196F3;
             color: white;
         }
-        .rating-A { background-color: #4CAF50; color: white; }
-        .rating-B { background-color: #8BC34A; color: white; }
-        .rating-C { background-color: #FFC107; color: #333; }
-        .rating-D { background-color: #FF9800; color: #333; }
+
+        .rating-A {
+            background-color: #4CAF50;
+            color: black;
+        }
+
+        .rating-B {
+            background-color: #8BC34A;
+            color: black;
+        }
+
+        .rating-C {
+            background-color: #FFC107;
+            color: #333;
+        }
+
+        .rating-D {
+            background-color: #FF9800;
+            color: #333;
+        }
+
         .stats-container {
             margin-top: 20px;
         }
+
         .stat-item {
             margin-bottom: 10px;
             padding: 10px;
@@ -73,29 +100,35 @@
             background-color: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+
         .legend {
             display: flex;
             flex-wrap: wrap;
             margin-top: 15px;
         }
+
         .legend-item {
             display: flex;
             align-items: center;
             margin-right: 15px;
             margin-bottom: 5px;
         }
+
         .legend-color {
             width: 20px;
             height: 20px;
             margin-right: 5px;
             border-radius: 3px;
         }
+
         .heatmap-controls {
             margin-top: 15px;
         }
+
         .location-list {
             margin-top: 20px;
         }
+
         .location-item {
             padding: 8px;
             margin-bottom: 5px;
@@ -104,9 +137,11 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             cursor: pointer;
         }
-        .location-item:hover {
-            background-color: #f0f0f0;
-        }
+
+            .location-item:hover {
+                background-color: #f0f0f0;
+            }
+
         .modal {
             display: none;
             position: fixed;
@@ -117,6 +152,7 @@
             height: 100%;
             background-color: rgba(0,0,0,0.5);
         }
+
         .modal-content {
             background-color: #fefefe;
             margin: 10% auto;
@@ -125,6 +161,7 @@
             width: 80%;
             max-width: 500px;
         }
+
         .close {
             color: #aaa;
             float: right;
@@ -132,11 +169,13 @@
             font-weight: bold;
             cursor: pointer;
         }
+
         .rating-options {
             display: flex;
             justify-content: center;
             margin: 20px 0;
         }
+
         .rating-btn {
             width: 50px;
             height: 50px;
@@ -151,17 +190,20 @@
             transition: all 0.2s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .rating-btn.selected-rating {
-            transform: scale(1.15);
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
-            z-index: 1;
-        }
+
+            .rating-btn.selected-rating {
+                transform: scale(1.15);
+                box-shadow: 0 0 15px rgba(0,0,0,0.3);
+                z-index: 1;
+            }
+
         .radius-stats {
             margin-top: 10px;
             padding: 10px;
             background-color: #f8f9fa;
             border-radius: 4px;
         }
+
         .radius-stat-item {
             display: flex;
             justify-content: space-between;
@@ -179,14 +221,14 @@
         <button class="info-btn" onclick="exportToCSV()">导出数据</button>
         <button class="danger-btn" onclick="clearStorage()">清空数据</button>
     </div>
-    
+
     <div class="container">
         <div class="sidebar">
             <h3>数据统计</h3>
             <div class="stats-container" id="statsContainer">
                 <!-- 统计数据将在这里动态生成 -->
             </div>
-            
+
             <h3>图例</h3>
             <div class="legend">
                 <div class="legend-item">
@@ -206,7 +248,7 @@
                     <span>D级</span>
                 </div>
             </div>
-            
+
             <div class="heatmap-controls">
                 <h3>热力图控制</h3>
                 <button onclick="toggleHeatmap()">切换热力图</button>
@@ -219,7 +261,7 @@
                     <input type="range" id="heatmapRadius" min="5" max="50" value="25" onchange="updateHeatmap()">
                 </div>
             </div>
-            
+
             <div class="location-list">
                 <h3>位置列表</h3>
                 <div id="locationList">
@@ -227,32 +269,32 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="map-container">
             <div id="map"></div>
         </div>
     </div>
-    
+
     <!-- 添加位置评级模态框 -->
     <div id="ratingModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
             <h2>添加新位置评级</h2>
             <p id="modalMessage">正在获取您的位置...</p>
-            
+
             <div class="rating-options" id="ratingOptions" style="display: none;">
                 <button class="rating-btn rating-A" onclick="selectRating('A')">A</button>
                 <button class="rating-btn rating-B" onclick="selectRating('B')">B</button>
                 <button class="rating-btn rating-C" onclick="selectRating('C')">C</button>
                 <button class="rating-btn rating-D" onclick="selectRating('D')">D</button>
             </div>
-            
+
             <div id="locationPreview" style="margin-top: 20px; display: none;">
                 <p><strong>纬度:</strong> <span id="previewLat"></span></p>
                 <p><strong>经度:</strong> <span id="previewLng"></span></p>
                 <p><strong>精确度:</strong> ±<span id="previewAcc"></span> 米</p>
             </div>
-            
+
             <button id="confirmBtn" class="primary-btn" style="margin-top: 20px; display: none;" onclick="saveLocationWithRating()">确认保存</button>
         </div>
     </div>
@@ -267,44 +309,44 @@
         let selectedRating = null;
         let heatmapEnabled = false;
         let radiusCircle = null;
-        
+
         // 初始化地图
         function initMap() {
             map = L.map('map').setView([39.9042, 116.4074], 5); // 默认北京中心
-            
+
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
-            
+
             // 初始化图层组
             markersLayer = L.layerGroup().addTo(map);
-            
+
             // 加载已有数据
             loadLocationData();
             updateStats(); // 确保初始化时更新统计
         }
-        
+
         // 计算两点之间的距离（米）
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3; // 地球半径（米）
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
             return R * c;
         }
-        
+
         // 获取500米半径内的评级统计
         function getRatingStatsInRadius(centerLat, centerLng) {
             const radius = 500; // 500米半径
             const stats = { A: 0, B: 0, C: 0, D: 0, total: 0 };
-            
+
             locationData.forEach(location => {
                 const distance = getDistance(centerLat, centerLng, location.latitude, location.longitude);
                 if (distance <= radius) {
@@ -312,15 +354,15 @@
                     stats.total++;
                 }
             });
-            
+
             return stats;
         }
-        
+
         // 加载位置数据到地图
         function loadLocationData() {
             // 清除现有标记
             markersLayer.clearLayers();
-            
+
             // 如果没有数据，则返回
             if (locationData.length === 0) {
                 // 清空统计显示
@@ -329,7 +371,7 @@
                 document.getElementById('locationList').innerHTML = '<p>暂无位置数据</p>';
                 return;
             }
-            
+
             // 创建标记并添加到地图
             locationData.forEach(location => {
                 const marker = L.circleMarker([location.latitude, location.longitude], {
@@ -340,49 +382,49 @@
                     opacity: 1,
                     fillOpacity: 0.8
                 }).addTo(markersLayer);
-                
+
                 // 创建弹出窗口内容
                 const stats = getRatingStatsInRadius(location.latitude, location.longitude);
                 const popupContent = `
-                    <b>位置评级: ${location.rating}</b><br>
-                    纬度: ${location.latitude}<br>
-                    经度: ${location.longitude}<br>
-                    精确度: ±${location.accuracy}米<br>
-                    时间: ${location.timestamp}
-                    <div class="radius-stats">
-                        <h4>500米半径内统计:</h4>
-                        <div class="radius-stat-item rating-A">
-                            <span>A级:</span>
-                            <span>${stats.A}次</span>
+                        <b>位置评级: ${location.rating}</b><br>
+                        纬度: ${location.latitude}<br>
+                        经度: ${location.longitude}<br>
+                        精确度: ±${location.accuracy}米<br>
+                        时间: ${location.timestamp}
+                        <div class="radius-stats">
+                            <h4>500米半径内统计:</h4>
+                            <div class="radius-stat-item rating-A">
+                                <span>A级:</span>
+                                <span>${stats.A}次</span>
+                            </div>
+                            <div class="radius-stat-item rating-B">
+                                <span>B级:</span>
+                                <span>${stats.B}次</span>
+                            </div>
+                            <div class="radius-stat-item rating-C">
+                                <span>C级:</span>
+                                <span>${stats.C}次</span>
+                            </div>
+                            <div class="radius-stat-item rating-D">
+                                <span>D级:</span>
+                                <span>${stats.D}次</span>
+                            </div>
+                            <div class="radius-stat-item">
+                                <span>总计:</span>
+                                <span>${stats.total}次</span>
+                            </div>
                         </div>
-                        <div class="radius-stat-item rating-B">
-                            <span>B级:</span>
-                            <span>${stats.B}次</span>
-                        </div>
-                        <div class="radius-stat-item rating-C">
-                            <span>C级:</span>
-                            <span>${stats.C}次</span>
-                        </div>
-                        <div class="radius-stat-item rating-D">
-                            <span>D级:</span>
-                            <span>${stats.D}次</span>
-                        </div>
-                        <div class="radius-stat-item">
-                            <span>总计:</span>
-                            <span>${stats.total}次</span>
-                        </div>
-                    </div>
-                `;
-                
+                    `;
+
                 marker.bindPopup(popupContent);
-                
+
                 // 点击标记时显示500米半径范围
-                marker.on('click', function(e) {
+                marker.on('click', function (e) {
                     // 移除现有的半径圆
                     if (radiusCircle) {
                         map.removeLayer(radiusCircle);
                     }
-                    
+
                     // 添加新的半径圆
                     radiusCircle = L.circle([location.latitude, location.longitude], {
                         radius: 500,
@@ -392,16 +434,16 @@
                     }).addTo(map);
                 });
             });
-            
+
             // 更新热力图
             updateHeatmap();
-            
+
             // 更新位置列表
             updateLocationList();
-            
+
             // 更新统计数据
             updateStats(); // 确保加载数据时更新统计
-            
+
             // 调整地图视图以包含所有标记
             if (locationData.length > 0) {
                 const bounds = markersLayer.getBounds();
@@ -410,10 +452,10 @@
                 }
             }
         }
-        
+
         // 获取评级对应的颜色
         function getRatingColor(rating) {
-            switch(rating) {
+            switch (rating) {
                 case 'A': return '#4CAF50';
                 case 'B': return '#8BC34A';
                 case 'C': return '#FFC107';
@@ -421,19 +463,19 @@
                 default: return '#999';
             }
         }
-        
+
         // 更新热力图
         function updateHeatmap() {
             if (!heatmapEnabled) return;
-            
+
             const intensity = parseInt(document.getElementById('heatmapIntensity').value);
             const radius = parseInt(document.getElementById('heatmapRadius').value);
-            
+
             // 准备热力图数据
             const heatmapData = locationData.map(location => {
                 // 根据评级给予不同的权重
                 let weight = 0.5;
-                switch(location.rating) {
+                switch (location.rating) {
                     case 'A': weight = 1.0; break;
                     case 'B': weight = 0.8; break;
                     case 'C': weight = 0.6; break;
@@ -441,12 +483,12 @@
                 }
                 return [location.latitude, location.longitude, weight];
             });
-            
+
             // 移除现有热力图
             if (heatmapLayer) {
                 map.removeLayer(heatmapLayer);
             }
-            
+
             // 添加新热力图
             if (heatmapData.length > 0) {
                 heatmapLayer = L.heatLayer(heatmapData, {
@@ -454,15 +496,15 @@
                     blur: 15,
                     maxZoom: 17,
                     max: intensity / 10,
-                    gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}
+                    gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
                 }).addTo(map);
             }
         }
-        
+
         // 切换热力图显示
         function toggleHeatmap() {
             heatmapEnabled = !heatmapEnabled;
-            
+
             if (heatmapEnabled) {
                 updateHeatmap();
             } else if (heatmapLayer) {
@@ -470,78 +512,78 @@
                 heatmapLayer = null;
             }
         }
-        
+
         // 更新统计数据
         function updateStats() {
             const statsContainer = document.getElementById('statsContainer');
-            
+
             // 计算各评级数量
             const ratingCounts = {
                 A: 0, B: 0, C: 0, D: 0
             };
-            
+
             locationData.forEach(location => {
                 ratingCounts[location.rating]++;
             });
-            
+
             // 计算总数
             const total = locationData.length;
-            
+
             // 更新统计显示
             statsContainer.innerHTML = `
-                <div class="stat-item">
-                    <strong>总记录数:</strong> ${total}
-                </div>
-                <div class="stat-item rating-A">
-                    <strong>A级数量:</strong> ${ratingCounts.A} (${total > 0 ? Math.round(ratingCounts.A / total * 100) : 0}%)
-                </div>
-                <div class="stat-item rating-B">
-                    <strong>B级数量:</strong> ${ratingCounts.B} (${total > 0 ? Math.round(ratingCounts.B / total * 100) : 0}%)
-                </div>
-                <div class="stat-item rating-C">
-                    <strong>C级数量:</strong> ${ratingCounts.C} (${total > 0 ? Math.round(ratingCounts.C / total * 100) : 0}%)
-                </div>
-                <div class="stat-item rating-D">
-                    <strong>D级数量:</strong> ${ratingCounts.D} (${total > 0 ? Math.round(ratingCounts.D / total * 100) : 0}%)
-                </div>
-            `;
+                    <div class="stat-item">
+                        <strong>总记录数:</strong> ${total}
+                    </div>
+                    <div class="stat-item rating-A">
+                        <strong>A级数量:</strong> ${ratingCounts.A} (${total > 0 ? Math.round(ratingCounts.A / total * 100) : 0}%)
+                    </div>
+                    <div class="stat-item rating-B">
+                        <strong>B级数量:</strong> ${ratingCounts.B} (${total > 0 ? Math.round(ratingCounts.B / total * 100) : 0}%)
+                    </div>
+                    <div class="stat-item rating-C">
+                        <strong>C级数量:</strong> ${ratingCounts.C} (${total > 0 ? Math.round(ratingCounts.C / total * 100) : 0}%)
+                    </div>
+                    <div class="stat-item rating-D">
+                        <strong>D级数量:</strong> ${ratingCounts.D} (${total > 0 ? Math.round(ratingCounts.D / total * 100) : 0}%)
+                    </div>
+                `;
         }
-        
+
         // 更新位置列表
         function updateLocationList() {
             const locationList = document.getElementById('locationList');
-            
+
             if (locationData.length === 0) {
                 locationList.innerHTML = '<p>暂无位置数据</p>';
                 return;
             }
-            
+
             locationList.innerHTML = '';
-            
+
             // 按时间倒序排列
             const sortedData = [...locationData].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
+
             sortedData.forEach(location => {
                 const item = document.createElement('div');
                 item.className = 'location-item';
                 item.innerHTML = `
-                    <div style="display: flex; justify-content: space-between;">
-                        <span><strong>${location.rating}级</strong> - ${location.timestamp}</span>
-                        <button onclick="flyToLocation(${location.latitude}, ${location.longitude}, event)" style="padding: 2px 5px; font-size: 12px;">查看</button>
-                    </div>
-                    <div style="font-size: 12px; color: #666;">
-                        纬度: ${location.latitude}, 经度: ${location.longitude}
-                    </div>
-                `;
+                        <div style="display: flex; justify-content: space-between;">
+                            <span><strong>${location.rating}级</strong> - ${location.timestamp}</span>
+                            <button onclick="flyToLocation(${location.latitude}, ${location.longitude}, event)" style="padding: 2px 5px; font-size: 12px;">查看</button>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            纬度: ${location.latitude}, 经度: ${location.longitude}
+                        </div>
+                    `;
                 locationList.appendChild(item);
             });
         }
-        
+
         // 定位到特定位置
         function flyToLocation(lat, lng, event) {
             if (event) event.stopPropagation();
             map.flyTo([lat, lng], 15);
-            
+
             // 显示500米半径范围
             if (radiusCircle) {
                 map.removeLayer(radiusCircle);
@@ -553,14 +595,14 @@
                 fillOpacity: 0.1
             }).addTo(map);
         }
-        
+
         // 显示评级模态框
         function showRatingModal() {
             const modal = document.getElementById('ratingModal');
             const ratingOptions = document.getElementById('ratingOptions');
             const modalMessage = document.getElementById('modalMessage');
             const confirmBtn = document.getElementById('confirmBtn');
-            
+
             // 重置状态
             selectedRating = null;
             currentPosition = null;
@@ -570,41 +612,41 @@
             });
             document.getElementById('locationPreview').style.display = 'none';
             confirmBtn.style.display = 'none';
-            
+
             // 显示模态框
             modal.style.display = 'block';
             modalMessage.textContent = '正在获取您的位置...';
-            
+
             // 检查浏览器是否支持地理位置API
             if (!navigator.geolocation) {
                 modalMessage.innerHTML = '<p class="error">您的浏览器不支持地理位置功能</p>';
                 return;
             }
-            
+
             // 请求位置信息
             navigator.geolocation.getCurrentPosition(
-                function(position) {
+                function (position) {
                     // 成功获取位置
                     currentPosition = position;
-                    
+
                     const latitude = position.coords.latitude.toFixed(6);
                     const longitude = position.coords.longitude.toFixed(6);
                     const accuracy = Math.round(position.coords.accuracy);
-                    
+
                     // 更新预览
                     document.getElementById('previewLat').textContent = latitude;
                     document.getElementById('previewLng').textContent = longitude;
                     document.getElementById('previewAcc').textContent = accuracy;
-                    
+
                     // 显示评级选项和预览
                     modalMessage.textContent = '请选择此位置的评级:';
                     ratingOptions.style.display = 'flex';
                     document.getElementById('locationPreview').style.display = 'block';
                 },
-                function(error) {
+                function (error) {
                     // 获取位置失败
                     let errorMessage = "获取位置时出错: ";
-                    switch(error.code) {
+                    switch (error.code) {
                         case error.PERMISSION_DENIED:
                             errorMessage += "用户拒绝了位置请求";
                             break;
@@ -627,35 +669,35 @@
                 }
             );
         }
-        
+
         // 关闭模态框
         function closeModal() {
             document.getElementById('ratingModal').style.display = 'none';
         }
-        
+
         // 选择评级
         function selectRating(rating) {
             selectedRating = rating;
-            
+
             // 更新UI
             document.querySelectorAll('.rating-btn').forEach(btn => {
                 btn.classList.remove('selected-rating');
             });
             event.target.classList.add('selected-rating');
-            
+
             // 显示确认按钮
             document.getElementById('confirmBtn').style.display = 'inline-block';
         }
-        
+
         // 保存带评级的位置
         function saveLocationWithRating() {
             if (!currentPosition || !selectedRating) return;
-            
+
             const latitude = currentPosition.coords.latitude.toFixed(6);
             const longitude = currentPosition.coords.longitude.toFixed(6);
             const accuracy = Math.round(currentPosition.coords.accuracy);
             const timestamp = new Date().toLocaleString();
-            
+
             // 创建新位置对象
             const newLocation = {
                 id: Date.now(), // 使用时间戳作为唯一ID
@@ -665,21 +707,21 @@
                 rating: selectedRating,
                 timestamp: timestamp
             };
-            
+
             // 添加到数组
             locationData.push(newLocation);
-            
+
             // 保存到本地存储
             localStorage.setItem('locationData', JSON.stringify(locationData));
-            
+
             // 关闭模态框
             closeModal();
-            
+
             // 重新加载数据
             loadLocationData();
             updateStats(); // 确保保存后更新统计
         }
-        
+
         // 清空所有数据
         function clearStorage() {
             if (confirm('确定要清空所有位置数据吗？此操作不可撤销！')) {
@@ -687,7 +729,7 @@
                 localStorage.removeItem('locationData');
                 loadLocationData();
                 updateStats(); // 确保清空后更新统计
-                
+
                 // 清除半径圆
                 if (radiusCircle) {
                     map.removeLayer(radiusCircle);
@@ -695,22 +737,22 @@
                 }
             }
         }
-        
+
         // 导出为CSV文件
         function exportToCSV() {
             if (locationData.length === 0) {
                 alert('没有可导出的数据');
                 return;
             }
-            
+
             // CSV标题行
             let csv = '序号,纬度,经度,精确度(米),评级,时间\n';
-            
+
             // 添加数据行
             locationData.forEach((location, index) => {
                 csv += `${index + 1},${location.latitude},${location.longitude},${location.accuracy},${location.rating},"${location.timestamp}"\n`;
             });
-            
+
             // 创建下载链接
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -722,7 +764,7 @@
             link.click();
             document.body.removeChild(link);
         }
-        
+
         // 初始化地图
         document.addEventListener('DOMContentLoaded', initMap);
     </script>

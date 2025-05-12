@@ -744,17 +744,17 @@
                 alert('没有可导出的数据');
                 return;
             }
-
-            // CSV标题行
-            let csv = '序号,纬度,经度,精确度(米),评级,时间\n';
-
+            
+            // CSV标题行 - 添加BOM头解决Excel乱码问题
+            let csv = '\uFEFF序号,纬度,经度,精确度(米),评级,时间\n';
+            
             // 添加数据行
             locationData.forEach((location, index) => {
                 csv += `${index + 1},${location.latitude},${location.longitude},${location.accuracy},${location.rating},"${location.timestamp}"\n`;
             });
-
+            
             // 创建下载链接
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.setAttribute('href', url);

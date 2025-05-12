@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>位置空气质量评级可视化系统</title>
     <style>
@@ -745,20 +745,34 @@
                 return;
             }
             
-            // CSV标题行 - 添加BOM头解决Excel乱码问题
-            let csv = '\uFEFF序号,纬度,经度,精确度(米),评级,时间\n';
+            // 创建XLS文件内容
+            let xlsContent = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+            xlsContent += '<head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>位置数据</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+            xlsContent += '<body><table>';
+            
+            // 添加表头
+            xlsContent += '<tr><th>序号</th><th>纬度</th><th>经度</th><th>精确度(米)</th><th>评级</th><th>时间</th></tr>';
             
             // 添加数据行
             locationData.forEach((location, index) => {
-                csv += `${index + 1},${location.latitude},${location.longitude},${location.accuracy},${location.rating},"${location.timestamp}"\n`;
+                xlsContent += `<tr>
+                    <td>${index + 1}</td>
+                    <td>${location.latitude}</td>
+                    <td>${location.longitude}</td>
+                    <td>${location.accuracy}</td>
+                    <td>${location.rating}</td>
+                    <td>${location.timestamp}</td>
+                </tr>`;
             });
             
+            xlsContent += '</table></body></html>';
+            
             // 创建下载链接
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const blob = new Blob([xlsContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.setAttribute('href', url);
-            link.setAttribute('download', `位置评级数据_${new Date().toLocaleDateString()}.csv`);
+            link.setAttribute('download', `位置评级数据_${new Date().toLocaleDateString()}.xls`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();

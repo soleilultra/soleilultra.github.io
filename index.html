@@ -1,1156 +1,1693 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>位置评级可视化系统</title>
-    <!-- 引入SheetJS库 -->
+    <title>污染气体浓度地图可视化系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- 引入Font Awesome图标 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --sidebar-width: 300px;
-            --sidebar-collapsed-width: 50px;
-            --header-height: auto;
-            --header-collapsed-height: 40px;
-            --transition-speed: 0.3s;
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36D399',
+                        warning: '#FF9F43',
+                        danger: '#FF5252',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                },
+            }
         }
+    </script>
 
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* 顶部栏样式 */
-        .header {
-            background-color: #f8f9fa;
-            padding: 0 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            z-index: 100;
-            height: var(--header-height);
-            transition: height var(--transition-speed);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            overflow: visible; /* 允许内容超出显示 */
-        }
-
-            .header.collapsed {
-                height: var(--header-collapsed-height);
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
             }
 
-        .header-top {
-            line-height: var(--header-collapsed-height); /* 设置行高与高度一致 */
-            padding: 0 15px; /* 确保内边距不会挤压文字 */
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: var(--header-collapsed-height);
-            min-height: var(--header-collapsed-height);
-        }
-
-        .header-content {
-            display: flex;
-            flex-direction: column;
-            transition: opacity var(--transition-speed);
-            padding: 5px 0;
-        }
-
-        .header.collapsed .header-content {
-            opacity: 0;
-            height: 0;
-            overflow: hidden;
-            padding: 0;
-        }
-
-        .toggle-header-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 5px;
-            margin: 0;
-        }
-
-        /* 主容器样式 */
-        .container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        /* 侧边栏样式 - 修复按钮遮挡问题 */
-        .sidebar {
-            width: var(--sidebar-width);
-            background-color: #f8f9fa;
-            transition: width var(--transition-speed);
-            overflow: visible; /* 修改为visible使按钮不被裁剪 */
-            display: flex;
-            flex-direction: column;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-            position: relative;
-            z-index: 10; /* 确保侧边栏在地图上方 */
-        }
-
-            .sidebar.collapsed {
-                width: var(--sidebar-collapsed-width);
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
             }
 
-        .sidebar-toggle {
-            position: absolute;
-            right: -15px; /* 将按钮移到侧边栏外侧 */
-            top: 10px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 20; /* 确保按钮在最上层 */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .sidebar-content {
-            padding: 15px;
-            overflow-y: auto;
-            flex: 1;
-            transition: opacity var(--transition-speed);
-        }
-
-        .sidebar.collapsed .sidebar-content {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        /* 地图容器样式 */
-        .map-container {
-            flex: 1;
-            position: relative;
-            transition: margin-left var(--transition-speed);
-            height: calc(100vh - var(--header-height));
-            z-index: 5;
-        }
-
-        #map {
-            height: 100%;
-            width: 100%;
-        }
-
-        /* 按钮样式 */
-        .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-            .button-group button {
-                flex: 1;
-                min-width: 120px;
-            }
-
-        button {
-            padding: 8px 15px;
-            margin: 0;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
-
-        .primary-btn {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .danger-btn {
-            background-color: #f44336;
-            color: white;
-        }
-
-        .info-btn {
-            background-color: #2196F3;
-            color: white;
-        }
-
-        /* 评级颜色 */
-        .rating-A {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .rating-B {
-            background-color: #8BC34A;
-            color: white;
-        }
-
-        .rating-C {
-            background-color: #FFC107;
-            color: #333;
-        }
-
-        .rating-D {
-            background-color: #FF9800;
-            color: #333;
-        }
-
-        /* 统计容器样式 */
-        .stats-container {
-            margin-top: 20px;
-        }
-
-        .stat-item {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            background-color: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        /* 图例样式 */
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-right: 15px;
-            margin-bottom: 5px;
-        }
-
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            margin-right: 5px;
-            border-radius: 3px;
-        }
-
-        /* 热力图控制样式 */
-        .heatmap-controls {
-            margin-top: 15px;
-        }
-
-        /* 位置列表样式 */
-        .location-list {
-            margin-top: 20px;
-        }
-
-        .location-item {
-            padding: 8px;
-            margin-bottom: 5px;
-            background-color: white;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            cursor: pointer;
-        }
-
-            .location-item:hover {
-                background-color: #f0f0f0;
-            }
-
-        /* 模态框样式 */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 10% auto;
-            padding: 20px;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 500px;
-        }
-
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* 评级选项样式 */
-        .rating-options {
-            display: flex;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .rating-btn {
-            width: 50px;
-            height: 50px;
-            margin: 0 5px;
-            font-size: 18px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-            .rating-btn.selected-rating {
-                transform: scale(1.15);
-                box-shadow: 0 0 15px rgba(0,0,0,0.3);
-                z-index: 1;
-            }
-
-        /* 半径统计样式 */
-        .radius-stats {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-        }
-
-        .radius-stat-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-        }
-
-        /* 折叠状态下的工具提示 */
-        .collapsed-tooltip {
-            position: absolute;
-            background: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 100;
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-            left: 60px;
-            top: 10px;
-        }
-
-        .sidebar-toggle:hover + .collapsed-tooltip {
-            opacity: 1;
-        }
-
-        /* 响应式调整 */
-        @media (max-width: 768px) {
-            .button-group button {
-                min-width: 100%;
-            }
-
-            .sidebar {
-                position: absolute;
-                height: 100%;
-                z-index: 100;
-            }
-
-                .sidebar.collapsed {
-                    transform: translateX(calc(-100% + var(--sidebar-collapsed-width)));
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
                 }
 
-            .sidebar-toggle {
-                right: auto;
-                left: calc(100% - 15px);
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+
+                .card-hover:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                }
+
+            .btn-effect {
+                position: relative;
+                overflow: hidden;
+            }
+
+                .btn-effect:after {
+                    content: "";
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    width: 5px;
+                    height: 5px;
+                    background: rgba(255, 255, 255, 0.5);
+                    opacity: 0;
+                    border-radius: 100%;
+                    transform: scale(1, 1) translate(-50%);
+                    transform-origin: 50% 50%;
+                }
+
+                .btn-effect:active:after {
+                    animation: ripple 1s ease-out;
+                }
+
+            @keyframes ripple {
+                0% {
+                    transform: scale(0, 0);
+                    opacity: 0.5;
+                }
+
+                100% {
+                    transform: scale(20, 20);
+                    opacity: 0;
+                }
             }
         }
     </style>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 </head>
-<body>
-    <!-- 顶部栏 -->
-    <div class="header" id="header">
-        <div class="header-top">
-            <button class="toggle-header-btn" onclick="toggleHeader()">
-                <i class="fas fa-bars"></i>
-            </button>
-            <h1 style="margin: 0; font-size: 1.2rem;">位置评级系统</h1>
-        </div>
-        <div class="header-content">
-            <div class="button-group">
-                <button class="primary-btn" onclick="showRatingModal()">
-                    <i class="fas fa-plus"></i> 添加新位置
+<body class="font-inter bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md z-50 sticky top-0 transition-all duration-300">
+        <div class="w-full max-w-full px-2 md:px-4 py-2 md:py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-globe text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-primary">污染气体浓度地图可视化系统</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="toggleTheme" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fa-solid fa-moon text-gray-600"></i>
                 </button>
-                <button class="info-btn" onclick="exportToExcel()">
-                    <i class="fas fa-file-excel"></i> 导出Excel
-                </button>
-                <button class="danger-btn" onclick="clearStorage()">
-                    <i class="fas fa-trash"></i> 清空数据
-                </button>
-                </button>
-                <input type="file" id="fileInput" accept=".xlsx" style="display: none;" onchange="importFromExcel()" />
-                <button class="info-btn" onclick="document.getElementById('fileInput').click()">
-                    <i class="fas fa-file-import"></i> 导入数据
+                <button id="helpBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fa-solid fa-question-circle text-gray-600"></i>
                 </button>
             </div>
         </div>
-    </div>
+    </header>
 
-    <!-- 主容器 -->
-    <div class="container">
-        <!-- 侧边栏 -->
-        <div class="sidebar" id="sidebar">
-            <button class="sidebar-toggle" onclick="toggleSidebar()">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <span class="collapsed-tooltip">展开侧边栏</span>
+    <!-- 主要内容区 -->
+    <main class="flex-1 flex flex-col md:flex-row w-full max-w-full p-2 md:p-6 gap-4 md:gap-6">
+        <!-- 左侧控制面板 -->
+        <aside class="w-full md:w-80 bg-white rounded-xl shadow-lg p-3 md:p-5 transition-all duration-300 flex flex-col">
+            <h2 class="text-xl font-bold mb-4 text-dark border-b pb-2 flex items-center">
+                <i class="fa-solid fa-sliders text-primary mr-2"></i>控制面板
+            </h2>
 
-            <div class="sidebar-content">
-                <h3>数据统计</h3>
-                <div class="stats-container" id="statsContainer">
-                    <p>暂无统计数据</p>
+            <!-- 文件上传 -->
+            <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold mb-3 flex items-center">
+                    <i class="fa-solid fa-file-excel text-primary mr-2"></i>数据导入/导出
+                </h3>
+                <div class="flex flex-col space-y-3">
+                    <div class="flex items-center justify-center w-full">
+                        <label for="fileUpload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <i class="fa-solid fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
+                                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">点击上传Excel文件</span></p>
+                                <p class="text-xs text-gray-500">支持 .xlsx, .xls 格式</p>
+                            </div>
+                            <input id="fileUpload" type="file" class="hidden" accept=".xlsx,.xls" />
+                        </label>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="loadSampleData" class="btn-effect flex-1 py-2 px-4 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex items-center justify-center">
+                            <i class="fa-solid fa-database mr-2"></i>加载示例
+                        </button>
+                        <button id="exportData" class="btn-effect flex-1 py-2 px-4 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors flex items-center justify-center">
+                            <i class="fa-solid fa-file-export mr-2"></i>导出数据
+                        </button>
+                    </div>
                 </div>
+            </div>
 
-                <h3>图例</h3>
-                <div class="legend">
-                    <div class="legend-item">
-                        <div class="legend-color rating-A"></div>
-                        <span>A级</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color rating-B"></div>
-                        <span>B级</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color rating-C"></div>
-                        <span>C级</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color rating-D"></div>
-                        <span>D级</span>
-                    </div>
-                </div>
-
-                <div class="heatmap-controls">
-                    <button class="info-btn" onclick="toggleWindLayer()">
-                        <i class="fas fa-wind"></i> 切换风向图
-                    </button>
-                    <h3>热力图控制</h3>
-                    <button onclick="toggleHeatmap()">
-                        <i class="fas fa-fire"></i> 切换热力图
-                    </button>
+            <!-- 数据筛选 -->
+            <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold mb-3 flex items-center">
+                    <i class="fa-solid fa-filter text-primary mr-2"></i>数据筛选
+                </h3>
+                <div class="space-y-4">
+                    <!-- 日期选择 -->
                     <div>
-                        <label>热力图强度: </label>
-                        <input type="range" id="heatmapIntensity" min="1" max="20" value="10" onchange="updateHeatmap()">
+                        <label for="dateFilter" class="block text-sm font-medium text-gray-700 mb-1">选择日期</label>
+                        <div class="relative">
+                            <input type="date" id="dateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" />
+                        </div>
                     </div>
+
+                    <!-- 污染气体类型选择 -->
                     <div>
-                        <label>热力图半径: </label>
-                        <input type="range" id="heatmapRadius" min="5" max="50" value="25" onchange="updateHeatmap()">
+                        <label for="gasType" class="block text-sm font-medium text-gray-700 mb-1">
+                            污染气体类型
+                            <span class="text-xs text-gray-400">(按住Ctrl可多选)</span>
+                        </label>
+
+                        <select id="gasType" multiple class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none bg-white h-32">
+                            <option value="SO2">二氧化硫 (SO₂)</option>
+                            <option value="NO2">二氧化氮 (NO₂)</option>
+                            <option value="PM2.5">细颗粒物 (PM2.5)</option>
+                            <option value="PM10">可吸入颗粒物 (PM10)</option>
+                            <option value="CO">一氧化碳 (CO)</option>
+                            <option value="O3">臭氧 (O₃)</option>
+                        </select>
+
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                    <!-- 聚合半径设置 -->
+                    <div>
+                        <label for="clusterRadius" class="block text-sm font-medium text-gray-700 mb-1">
+                            聚合半径 (米)
+                        </label>
+                        <input type="number" id="clusterRadius" min="0" step="1" value="200"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" />
+                    </div>
+                    <!-- 应用筛选按钮 -->
+                    <button id="applyFilters" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-magic mr-2"></i>应用筛选
+                    </button>
+                </div>
+            </div>
+
+            <!-- 数据管理 -->
+            <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold mb-3 flex items-center">
+                    <i class="fa-solid fa-database text-primary mr-2"></i>数据管理
+                </h3>
+                <div class="space-y-3">
+                    <button id="deleteSelectedData" class="btn-effect w-full py-2 px-4 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-trash mr-2"></i>删除选中数据
+                    </button>
+                    <button id="deleteAllData" class="btn-effect w-full py-2 px-4 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-ban mr-2"></i>清空所有数据
+                    </button>
+                </div>
+            </div>
+
+            <!-- 地图控制 -->
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold mb-3 flex items-center">
+                    <i class="fa-solid fa-map text-primary mr-2"></i>地图控制
+                </h3>
+                <div class="space-y-3">
+                    <button id="locateMe" class="btn-effect w-full py-2 px-4 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-location-dot mr-2"></i>定位我的位置
+                    </button>
+                    <button id="resetView" class="btn-effect w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-arrows-rotate mr-2"></i>重置视图
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-auto text-center text-xs text-gray-500">
+                <p>污染气体浓度地图可视化系统 v1.0</p>
+            </div>
+        </aside>
+
+        <!-- 右侧地图和数据显示区 -->
+        <div class="flex-1 flex flex-col gap-4 md:gap-6">
+            <!-- 地图容器 -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden flex-1 flex flex-col">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-dark flex items-center">
+                        <i class="fa-solid fa-map-marked-alt text-primary mr-2"></i>污染气体浓度分布图
+                    </h2>
+                    <div class="flex space-x-2">
+                        <button id="toggleFullscreen" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i class="fa-solid fa-expand text-gray-600"></i>
+                        </button>
+                        <button id="downloadMap" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i class="fa-solid fa-download text-gray-600"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="mapContainer" class="flex-1 relative min-h-[320px] md:min-h-[480px]">
+                    <!-- 污染物类型图例 -->
+                    <div id="pollutantLegend" class="absolute bottom-4 right-4 bg-white/90 p-3 rounded-lg shadow-lg max-w-xs z-20">
+                        <h3 class="font-semibold text-sm mb-2">污染物类型图例</h3>
+                        <div class="flex flex-col space-y-1 text-xs">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(52,211,153,0.92)"></span>
+                                <span>二氧化硫 (SO₂)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(245,158,66,0.92)"></span>
+                                <span>二氧化氮 (NO₂)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(239,68,68,0.92)"></span>
+                                <span>细颗粒物 (PM2.5)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(59,130,246,0.92)"></span>
+                                <span>可吸入颗粒物 (PM10)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(251,191,36,0.92)"></span>
+                                <span>一氧化碳 (CO)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(167,139,250,0.92)"></span>
+                                <span>臭氧 (O₃)</span>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- 地图样式切换控件 -->
+                    <div id="mapStyleSwitcher" style="position:absolute;top:16px;left:16px;z-index:20;">
+                        <select id="mapStyleSelect" class="px-2 py-1 rounded border border-gray-300 bg-white text-sm shadow">
+                            <option value="light">街道图</option>
+                            <option value="dark">暗色图</option>
+                            <option value="outdoors">地形图</option>
+                            <option value="satellite">卫星图</option>
+                            <option value="satellite-streets">卫星街道图</option>
+                        </select>
+                    </div>
+
+                    <div id="map" class="w-full h-full"></div>
+
+                    <!-- 加载中遮罩 -->
+                    <div id="loadingOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center z-10 hidden">
+                        <div class="flex flex-col items-center">
+                            <div class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
+                            <p class="text-gray-600 font-medium">加载中...</p>
+                        </div>
+                    </div>
+
+
+
+                </div>
+            </div>
+
+            <!-- 数据统计和输入区 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 max-h-[320px] overflow-y-auto">
+                <!-- 数据统计卡片 ... -->
+                <div class="bg-white rounded-xl shadow-lg p-5 card-hover">
+                    <h2 class="text-lg font-bold text-dark mb-4 flex items-center">
+                        <i class="fa-solid fa-chart-line text-primary mr-2"></i>数据统计
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">监测点数量</span>
+                            <span id="stationCount" class="text-lg font-semibold text-primary">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">平均浓度</span>
+                            <span id="avgConcentration" class="text-lg font-semibold text-primary">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">最高浓度</span>
+                            <span id="maxConcentration" class="text-lg font-semibold text-danger">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">最低浓度</span>
+                            <span id="minConcentration" class="text-lg font-semibold text-secondary">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 图表容器 -->
+                    <div class="mt-4">
+                        <canvas id="concentrationChart" width="400" height="200"></canvas>
                     </div>
                 </div>
 
-                <div class="location-list">
-                    <h3>位置列表</h3>
-                    <div id="locationList">
-                        <p>暂无位置数据</p>
+                <!-- 实时数据卡片 -->
+                <div class="bg-white rounded-xl shadow-lg p-5 card-hover">
+                    <h2 class="text-lg font-bold text-dark mb-4 flex items-center">
+                        <i class="fa-solid fa-table text-primary mr-2"></i>实时数据
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">监测点</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">浓度</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200 max-h-64 overflow-y-auto scrollbar-hide">
+                                <!-- 数据将通过JavaScript动态填充 -->
+                                <tr class="text-center">
+                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
+                    <div class="mt-4 text-center">
+                        <button id="refreshData" class="btn-effect px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm">
+                            <i class="fa-solid fa-refresh mr-1"></i>刷新数据
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 手动数据输入卡片 -->
+                <div class="bg-white rounded-xl shadow-lg p-5 card-hover">
+                    <h2 class="text-lg font-bold text-dark mb-4 flex items-center">
+                        <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
+                    </h2>
+                    <form id="manualDataForm" class="space-y-4">
+                        <div>
+                            <label for="manualLat" class="block text-sm font-medium text-gray-700 mb-1">纬度</label>
+                            <input type="number" id="manualLat" step="any" placeholder="例如: 39.9042" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                        </div>
+                        <div>
+                            <label for="manualLng" class="block text-sm font-medium text-gray-700 mb-1">经度</label>
+                            <input type="number" id="manualLng" step="any" placeholder="例如: 116.4074" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                        </div>
+                        <div>
+                            <label for="manualDate" class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+                            <input type="date" id="manualDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                        </div>
+                        <div>
+                            <label for="manualGasType" class="block text-sm font-medium text-gray-700 mb-1">污染气体类型</label>
+                            <select id="manualGasType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none">
+                                <option value="SO2">二氧化硫 (SO₂)</option>
+                                <option value="NO2">二氧化氮 (NO₂)</option>
+                                <option value="PM2.5">细颗粒物 (PM2.5)</option>
+                                <option value="PM10">可吸入颗粒物 (PM10)</option>
+                                <option value="CO">一氧化碳 (CO)</option>
+                                <option value="O3">臭氧 (O₃)</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="manualConcentration" class="block text-sm font-medium text-gray-700 mb-1">浓度值</label>
+                            <input type="number" id="manualConcentration" step="any" placeholder="例如: 56.7" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                        </div>
+                        <button type="submit" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
+                            <i class="fa-solid fa-plus mr-2"></i>添加数据
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
+    </main>
 
-        <!-- 地图容器 -->
-        <div class="map-container">
-            <div id="map"></div>
+    <!-- 帮助模态框 -->
+    <div id="helpModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-dark">使用帮助</h2>
+                <button id="closeHelpModal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <i class="fa-solid fa-times text-gray-600"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa-solid fa-file-excel text-primary mr-2"></i>数据导入/导出
+                    </h3>
+                    <p class="text-gray-600">支持上传Excel文件(.xlsx, .xls)，文件应包含以下列：纬度、经度、日期、污染气体类型、浓度值。也可以导出当前数据为Excel文件。</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa-solid fa-map-marked-alt text-primary mr-2"></i>地图操作
+                    </h3>
+                    <ul class="text-gray-600 list-disc pl-5 space-y-1">
+                        <li>点击地图上的柱状图可查看详细数据</li>
+                        <li>使用鼠标滚轮或双击放大/缩小地图</li>
+                        <li>按住鼠标左键拖动可平移地图</li>
+                        <li>点击"定位我的位置"按钮可自动定位到当前位置</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa-solid fa-filter text-primary mr-2"></i>数据筛选
+                    </h3>
+                    <p class="text-gray-600">可通过选择日期和污染气体类型来筛选显示的数据，点击"应用筛选"按钮生效。</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa-solid fa-trash text-primary mr-2"></i>数据删除
+                    </h3>
+                    <p class="text-gray-600">点击地图上的柱状图选中数据点后，可使用"删除选中数据"按钮删除该数据点。使用"清空所有数据"按钮可删除所有已加载的数据。</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
+                    </h3>
+                    <p class="text-gray-600">可通过手动输入经纬度、日期、气体类型和浓度值来添加新的数据点，添加后将自动显示在地图上。</p>
+                </div>
+            </div>
+            <div class="p-5 border-t flex justify-end">
+                <button id="confirmHelpModal" class="btn-effect px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                    我知道了
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- 添加位置评级模态框 -->
-    <div id="ratingModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2>添加新位置评级</h2>
-            <p id="modalMessage">正在获取您的位置...</p>
-
-            <div class="rating-options" id="ratingOptions" style="display: none;">
-                <button class="rating-btn rating-A" onclick="selectRating('A')">A</button>
-                <button class="rating-btn rating-B" onclick="selectRating('B')">B</button>
-                <button class="rating-btn rating-C" onclick="selectRating('C')">C</button>
-                <button class="rating-btn rating-D" onclick="selectRating('D')">D</button>
-            </div>
-
-            <div id="locationPreview" style="margin-top: 20px; display: none;">
-                <p><strong>纬度:</strong> <span id="previewLat"></span></p>
-                <p><strong>经度:</strong> <span id="previewLng"></span></p>
-                <p><strong>精确度:</strong> ±<span id="previewAcc"></span> 米</p>
-            </div>
-
-            <button id="confirmBtn" class="primary-btn" style="margin-top: 20px; display: none;" onclick="saveLocationWithRating()">确认保存</button>
+    <!-- 通知提示 -->
+    <div id="notification" class="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-start">
+        <div id="notificationIcon" class="mr-3 text-xl"></div>
+        <div>
+            <h4 id="notificationTitle" class="font-semibold text-sm"></h4>
+            <p id="notificationMessage" class="text-sm text-gray-600 mt-1"></p>
         </div>
+        <button id="closeNotification" class="ml-4 text-gray-400 hover:text-gray-600">
+            <i class="fa-solid fa-times"></i>
+        </button>
     </div>
-    <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+
     <script>
-        // 初始化变量
-        let map;
-        let heatmapLayer = null;
-        let markersLayer = null;
-        let locationData = JSON.parse(localStorage.getItem('locationData')) || [];
-        let currentPosition = null;
-        let selectedRating = null;
-        let heatmapEnabled = false;
-        let radiusCircle = null;
-        let windyMap = null;
-        let windLayerEnabled = false;
+        // 初始化Mapbox地图
+        mapboxgl.accessToken = 'pk.eyJ1IjoiazhhdDl6Z28iLCJhIjoiY21hY2h5Mm5tMDNpejJtcXZxYW9kbzA4YyJ9.w4RIBZJv5DOmzfVZQ_FpXw'; // 替换为您的Mapbox访问令牌
 
-        // 侧边栏和顶部栏状态
-        let sidebarCollapsed = false;
-        let headerCollapsed = false;
+        // 示例数据
+        const sampleData = [
+            { id: 'sample1', lat: 39.9042, lng: 116.4074, date: '2025-05-10', type: 'PM2.5', concentration: 56.7 },
+            { id: 'sample2', lat: 39.9148, lng: 116.4039, date: '2025-05-10', type: 'NO2', concentration: 42.3 },
+            { id: 'sample3', lat: 39.9245, lng: 116.4142, date: '2025-05-10', type: 'SO2', concentration: 68.9 },
+            { id: 'sample4', lat: 39.9357, lng: 116.4015, date: '2025-05-10', type: 'PM10', concentration: 35.2 },
+            { id: 'sample5', lat: 39.9096, lng: 116.4274, date: '2025-05-10', type: 'CO', concentration: 72.1 },
+            { id: 'sample6', lat: 39.9042, lng: 116.4074, date: '2025-05-11', type: 'O3', concentration: 48.5 },
+            { id: 'sample7', lat: 39.9148, lng: 116.4039, date: '2025-05-11', type: 'NO2', concentration: 39.7 },
+            { id: 'sample8', lat: 39.9245, lng: 116.4142, date: '2025-05-11', type: 'SO2', concentration: 52.3 },
+            { id: 'sample9', lat: 39.9357, lng: 116.4015, date: '2025-05-11', type: 'PM10', concentration: 28.9 },
+            { id: 'sample10', lat: 39.9096, lng: 116.4274, date: '2025-05-11', type: 'CO', concentration: 65.4 }
+        ];
 
+        // 应用状态
+        const appState = {
+            data: [],
+            selectedGasTypes: [], // 多选数组
+            selectedDate: '',
+            selectedPoints: [],
+            map: null,
+            concentrationChart: null,
+            isDarkMode: false,
+            popup: null // 新增：保存当前弹窗实例
+        };
+
+        // DOM元素
+        const elements = {
+            fileUpload: document.getElementById('fileUpload'),
+            loadSampleData: document.getElementById('loadSampleData'),
+            exportData: document.getElementById('exportData'),
+            dateFilter: document.getElementById('dateFilter'),
+            gasType: document.getElementById('gasType'),
+            applyFilters: document.getElementById('applyFilters'),
+            deleteSelectedData: document.getElementById('deleteSelectedData'),
+            deleteAllData: document.getElementById('deleteAllData'),
+            locateMe: document.getElementById('locateMe'),
+            resetView: document.getElementById('resetView'),
+            toggleFullscreen: document.getElementById('toggleFullscreen'),
+            downloadMap: document.getElementById('downloadMap'),
+            manualDataForm: document.getElementById('manualDataForm'),
+            refreshData: document.getElementById('refreshData'),
+            helpBtn: document.getElementById('helpBtn'),
+            closeHelpModal: document.getElementById('closeHelpModal'),
+            confirmHelpModal: document.getElementById('confirmHelpModal'),
+            helpModal: document.getElementById('helpModal'),
+            toggleTheme: document.getElementById('toggleTheme'),
+            notification: document.getElementById('notification'),
+            notificationIcon: document.getElementById('notificationIcon'),
+            notificationTitle: document.getElementById('notificationTitle'),
+            notificationMessage: document.getElementById('notificationMessage'),
+            closeNotification: document.getElementById('closeNotification'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            dataTableBody: document.getElementById('dataTableBody'),
+            stationCount: document.getElementById('stationCount'),
+            avgConcentration: document.getElementById('avgConcentration'),
+            maxConcentration: document.getElementById('maxConcentration'),
+            minConcentration: document.getElementById('minConcentration'),
+            manualDate: document.getElementById('manualDate'),
+            clusterRadius: document.getElementById('clusterRadius'),
+        };
+        function updateDateFilterOptions() {
+            // 获取所有数据的日期，去重并排序
+            const allDates = Array.from(new Set(appState.data.map(item => item.date))).sort();
+            if (allDates.length === 0) return;
+
+            // 设置日期选择器的最小和最大值
+            elements.dateFilter.min = allDates[0];
+            elements.dateFilter.max = allDates[allDates.length - 1];
+
+            // 如果当前选中的日期不在数据中，自动切换到第一个有数据的日期
+            if (!allDates.includes(elements.dateFilter.value)) {
+                elements.dateFilter.value = allDates[0];
+                appState.selectedDate = allDates[0];
+            }
+        }
+
+
+        // 初始化应用
+        function initApp() {
+            // 设置默认日期为今天
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0];
+            elements.dateFilter.value = formattedDate;
+            elements.manualDate.value = formattedDate;
+            appState.selectedDate = formattedDate;
+
+            // 默认全选所有类型
+            for (let i = 0; i < elements.gasType.options.length; i++) {
+                elements.gasType.options[i].selected = true;
+            }
+            appState.selectedGasTypes = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
+
+            // 初始化地图
+            initMap();
+
+            // 初始化图表
+            initChart();
+
+            // 绑定事件处理程序
+            bindEvents();
+
+            // 显示帮助模态框
+            setTimeout(() => {
+                showHelpModal();
+            }, 1000);
+        }
         // 初始化地图
         function initMap() {
-            map = L.map('map').setView([39.9042, 116.4074], 5); // 默认北京中心
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            // 初始化图层组
-            markersLayer = L.layerGroup().addTo(map);
-
-            // 加载已有数据
-            loadLocationData();
-
-            // 初始化UI状态
-            updateToggleButtons();
-        }
-
-        // 切换侧边栏
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = sidebar.querySelector('.sidebar-toggle i');
-
-            sidebarCollapsed = !sidebarCollapsed;
-            sidebar.classList.toggle('collapsed', sidebarCollapsed);
-
-            if (sidebarCollapsed) {
-                toggleBtn.classList.remove('fa-chevron-left');
-                toggleBtn.classList.add('fa-chevron-right');
-            } else {
-                toggleBtn.classList.remove('fa-chevron-right');
-                toggleBtn.classList.add('fa-chevron-left');
-            }
-
-            localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
-        }
-
-        // 切换顶部栏
-        function toggleHeader() {
-            const header = document.getElementById('header');
-
-            headerCollapsed = !headerCollapsed;
-            header.classList.toggle('collapsed', headerCollapsed);
-
-            localStorage.setItem('headerCollapsed', headerCollapsed);
-        }
-
-        // 更新切换按钮状态
-        function updateToggleButtons() {
-            // 从本地存储获取状态
-            const savedSidebarState = localStorage.getItem('sidebarCollapsed');
-            const savedHeaderState = localStorage.getItem('headerCollapsed');
-
-            if (savedSidebarState !== null) {
-                sidebarCollapsed = savedSidebarState === 'true';
-                document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
-
-                const toggleBtn = document.querySelector('.sidebar-toggle i');
-                if (sidebarCollapsed) {
-                    toggleBtn.classList.remove('fa-chevron-left');
-                    toggleBtn.classList.add('fa-chevron-right');
-                } else {
-                    toggleBtn.classList.remove('fa-chevron-right');
-                    toggleBtn.classList.add('fa-chevron-left');
-                }
-            }
-
-            if (savedHeaderState !== null) {
-                headerCollapsed = savedHeaderState === 'true';
-                document.getElementById('header').classList.toggle('collapsed', headerCollapsed);
-            }
-        }
-
-        // 计算两点之间的距离（米）
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // 地球半径（米）
-            const φ1 = lat1 * Math.PI / 180;
-            const φ2 = lat2 * Math.PI / 180;
-            const Δφ = (lat2 - lat1) * Math.PI / 180;
-            const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-            return R * c;
-        }
-
-        // 获取500米半径内的评级统计
-        function getRatingStatsInRadius(centerLat, centerLng) {
-            const radius = 500; // 500米半径
-            const stats = { A: 0, B: 0, C: 0, D: 0, total: 0 };
-
-            locationData.forEach(location => {
-                const distance = getDistance(centerLat, centerLng, location.latitude, location.longitude);
-                if (distance <= radius) {
-                    stats[location.rating]++;
-                    stats.total++;
-                }
+            appState.map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/light-v10',
+                center: [116.4074, 39.9042], // 北京中心
+                zoom: 10
             });
 
-            return stats;
-        }
+            // 地图加载完成后
+            appState.map.on('load', () => {
+                // 添加导航控件
+                appState.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-        // 加载位置数据到地图
-        function loadLocationData() {
-            // 清除现有标记
-            markersLayer.clearLayers();
-
-            // 如果没有数据，则更新UI并返回
-            if (locationData.length === 0) {
-                document.getElementById('statsContainer').innerHTML = '<p>暂无统计数据</p>';
-                document.getElementById('locationList').innerHTML = '<p>暂无位置数据</p>';
-                return;
-            }
-
-            // 创建标记并添加到地图
-            locationData.forEach(location => {
-                const marker = L.circleMarker([location.latitude, location.longitude], {
-                    radius: 8,
-                    fillColor: getRatingColor(location.rating),
-                    color: '#fff',
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                }).addTo(markersLayer);
-
-                // 创建弹出窗口内容
-                const stats = getRatingStatsInRadius(location.latitude, location.longitude);
-                const popupContent = `
-                                <b>位置评级: ${location.rating}</b><br>
-                                纬度: ${location.latitude}<br>
-                                经度: ${location.longitude}<br>
-                                精确度: ±${location.accuracy}米<br>
-                                时间: ${location.timestamp}
-                                <div class="radius-stats">
-                                    <h4>500米半径内统计:</h4>
-                                    <div class="radius-stat-item rating-A">
-                                        <span>A级:</span>
-                                        <span>${stats.A}次</span>
-                                    </div>
-                                    <div class="radius-stat-item rating-B">
-                                        <span>B级:</span>
-                                        <span>${stats.B}次</span>
-                                    </div>
-                                    <div class="radius-stat-item rating-C">
-                                        <span>C级:</span>
-                                        <span>${stats.C}次</span>
-                                    </div>
-                                    <div class="radius-stat-item rating-D">
-                                        <span>D级:</span>
-                                        <span>${stats.D}次</span>
-                                    </div>
-                                    <div class="radius-stat-item">
-                                        <span>总计:</span>
-                                        <span>${stats.total}次</span>
-                                    </div>
-                                </div>
-                            `;
-
-                marker.bindPopup(popupContent);
-
-                // 点击标记时显示500米半径范围
-                marker.on('click', function (e) {
-                    // 移除现有的半径圆
-                    if (radiusCircle) {
-                        map.removeLayer(radiusCircle);
-                    }
-
-                    // 添加新的半径圆
-                    radiusCircle = L.circle([location.latitude, location.longitude], {
-                        radius: 500,
-                        color: '#0078A8',
-                        fillColor: '#0078A8',
-                        fillOpacity: 0.1
-                    }).addTo(map);
-                });
-            });
-
-            // 更新热力图
-            updateHeatmap();
-
-            // 更新位置列表
-            updateLocationList();
-
-            // 更新统计数据
-            updateStats();
-
-            // 调整地图视图以包含所有标记
-            if (locationData.length > 0) {
-                const bounds = markersLayer.getBounds();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                }
-            }
-        }
-
-        // 获取评级对应的颜色
-        function getRatingColor(rating) {
-            switch (rating) {
-                case 'A': return '#4CAF50';
-                case 'B': return '#8BC34A';
-                case 'C': return '#FFC107';
-                case 'D': return '#FF9800';
-                default: return '#999';
-            }
-        }
-
-        // 更新热力图
-        function updateHeatmap() {
-            if (!heatmapEnabled) return;
-
-            const intensity = parseInt(document.getElementById('heatmapIntensity').value);
-            const radius = parseInt(document.getElementById('heatmapRadius').value);
-
-            // 准备热力图数据
-            const heatmapData = locationData.map(location => {
-                // 根据评级给予不同的权重
-                let weight = 0.5;
-                switch (location.rating) {
-                    case 'A': weight = 1.0; break;
-                    case 'B': weight = 0.8; break;
-                    case 'C': weight = 0.6; break;
-                    case 'D': weight = 0.4; break;
-                }
-                return [location.latitude, location.longitude, weight];
-            });
-
-            // 移除现有热力图
-            if (heatmapLayer) {
-                map.removeLayer(heatmapLayer);
-            }
-
-            // 添加新热力图
-            if (heatmapData.length > 0) {
-                heatmapLayer = L.heatLayer(heatmapData, {
-                    radius: radius,
-                    blur: 15,
-                    maxZoom: 17,
-                    max: intensity / 10,
-                    gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
-                }).addTo(map);
-            }
-        }
-
-        // 切换热力图显示
-        function toggleHeatmap() {
-            heatmapEnabled = !heatmapEnabled;
-
-            if (heatmapEnabled) {
-                updateHeatmap();
-            } else if (heatmapLayer) {
-                map.removeLayer(heatmapLayer);
-                heatmapLayer = null;
-            }
-        }
-
-        // 更新统计数据
-        function updateStats() {
-            const statsContainer = document.getElementById('statsContainer');
-
-            // 计算各评级数量
-            const ratingCounts = {
-                A: 0, B: 0, C: 0, D: 0
-            };
-
-            locationData.forEach(location => {
-                ratingCounts[location.rating]++;
-            });
-
-            // 计算总数
-            const total = locationData.length;
-
-            // 更新统计显示
-            statsContainer.innerHTML = `
-                            <div class="stat-item">
-                                <strong>总记录数:</strong> ${total}
-                            </div>
-                            <div class="stat-item rating-A">
-                                <strong>A级数量:</strong> ${ratingCounts.A} (${total > 0 ? Math.round(ratingCounts.A / total * 100) : 0}%)
-                            </div>
-                            <div class="stat-item rating-B">
-                                <strong>B级数量:</strong> ${ratingCounts.B} (${total > 0 ? Math.round(ratingCounts.B / total * 100) : 0}%)
-                            </div>
-                            <div class="stat-item rating-C">
-                                <strong>C级数量:</strong> ${ratingCounts.C} (${total > 0 ? Math.round(ratingCounts.C / total * 100) : 0}%)
-                            </div>
-                            <div class="stat-item rating-D">
-                                <strong>D级数量:</strong> ${ratingCounts.D} (${total > 0 ? Math.round(ratingCounts.D / total * 100) : 0}%)
-                            </div>
-                        `;
-        }
-
-        // 更新位置列表
-        function updateLocationList() {
-            const locationList = document.getElementById('locationList');
-
-            if (locationData.length === 0) {
-                locationList.innerHTML = '<p>暂无位置数据</p>';
-                return;
-            }
-
-            locationList.innerHTML = '';
-
-            // 按时间倒序排列
-            const sortedData = [...locationData].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-            sortedData.forEach(location => {
-                const item = document.createElement('div');
-                item.className = 'location-item';
-                item.innerHTML = `
-                                <div style="display: flex; justify-content: space-between;">
-                                    <span><strong>${location.rating}级</strong> - ${location.timestamp}</span>
-                                    <button onclick="flyToLocation(${location.latitude}, ${location.longitude}, event)" style="padding: 2px 5px; font-size: 12px;">查看</button>
-                                </div>
-                                <div style="font-size: 12px; color: #666;">
-                                    纬度: ${location.latitude}, 经度: ${location.longitude}
-                                </div>
-                            `;
-                locationList.appendChild(item);
-            });
-        }
-
-        // 定位到特定位置
-        function flyToLocation(lat, lng, event) {
-            if (event) event.stopPropagation();
-            map.flyTo([lat, lng], 15);
-
-            // 显示500米半径范围
-            if (radiusCircle) {
-                map.removeLayer(radiusCircle);
-            }
-            radiusCircle = L.circle([lat, lng], {
-                radius: 500,
-                color: '#0078A8',
-                fillColor: '#0078A8',
-                fillOpacity: 0.1
-            }).addTo(map);
-        }
-
-        // 显示评级模态框
-        function showRatingModal() {
-            const modal = document.getElementById('ratingModal');
-            const ratingOptions = document.getElementById('ratingOptions');
-            const modalMessage = document.getElementById('modalMessage');
-            const confirmBtn = document.getElementById('confirmBtn');
-
-            // 重置状态
-            selectedRating = null;
-            currentPosition = null;
-            ratingOptions.style.display = 'none';
-            document.querySelectorAll('.rating-btn').forEach(btn => {
-                btn.classList.remove('selected-rating');
-            });
-            document.getElementById('locationPreview').style.display = 'none';
-            confirmBtn.style.display = 'none';
-
-            // 显示模态框
-            modal.style.display = 'block';
-            modalMessage.textContent = '正在获取您的位置...';
-
-            // 检查浏览器是否支持地理位置API
-            if (!navigator.geolocation) {
-                modalMessage.innerHTML = '<p class="error">您的浏览器不支持地理位置功能</p>';
-                return;
-            }
-
-            // 请求位置信息
-            navigator.geolocation.getCurrentPosition(
-                function (position) {
-                    // 成功获取位置
-                    currentPosition = position;
-
-                    const latitude = position.coords.latitude.toFixed(6);
-                    const longitude = position.coords.longitude.toFixed(6);
-                    const accuracy = Math.round(position.coords.accuracy);
-
-                    // 更新预览
-                    document.getElementById('previewLat').textContent = latitude;
-                    document.getElementById('previewLng').textContent = longitude;
-                    document.getElementById('previewAcc').textContent = accuracy;
-
-                    // 显示评级选项和预览
-                    modalMessage.textContent = '请选择此位置的评级:';
-                    ratingOptions.style.display = 'flex';
-                    document.getElementById('locationPreview').style.display = 'block';
-                },
-                function (error) {
-                    // 获取位置失败
-                    let errorMessage = "获取位置时出错: ";
-                    switch (error.code) {
-                        case error.PERMISSION_DENIED:
-                            errorMessage += "用户拒绝了位置请求";
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            errorMessage += "位置信息不可用";
-                            break;
-                        case error.TIMEOUT:
-                            errorMessage += "获取位置请求超时";
-                            break;
-                        case error.UNKNOWN_ERROR:
-                            errorMessage += "发生未知错误";
-                            break;
-                    }
-                    modalMessage.innerHTML = `<p class="error">${errorMessage}</p>`;
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-        }
-
-        // 关闭模态框
-        function closeModal() {
-            document.getElementById('ratingModal').style.display = 'none';
-        }
-
-        // 选择评级
-        function selectRating(rating) {
-            selectedRating = rating;
-
-            // 更新UI
-            document.querySelectorAll('.rating-btn').forEach(btn => {
-                btn.classList.remove('selected-rating');
-            });
-            event.target.classList.add('selected-rating');
-
-            // 显示确认按钮
-            document.getElementById('confirmBtn').style.display = 'inline-block';
-        }
-
-        // 保存带评级的位置
-        function saveLocationWithRating() {
-            if (!currentPosition || !selectedRating) return;
-
-            const latitude = currentPosition.coords.latitude.toFixed(6);
-            const longitude = currentPosition.coords.longitude.toFixed(6);
-            const accuracy = Math.round(currentPosition.coords.accuracy);
-            const timestamp = new Date().toLocaleString();
-
-            // 创建新位置对象
-            const newLocation = {
-                id: Date.now(), // 使用时间戳作为唯一ID
-                latitude: parseFloat(latitude),
-                longitude: parseFloat(longitude),
-                accuracy: accuracy,
-                rating: selectedRating,
-                timestamp: timestamp
-            };
-
-            // 添加到数组
-            locationData.push(newLocation);
-
-            // 保存到本地存储
-            localStorage.setItem('locationData', JSON.stringify(locationData));
-
-            // 关闭模态框
-            closeModal();
-
-            // 重新加载数据
-            loadLocationData();
-        }
-
-        // 清空所有数据
-        function clearStorage() {
-            if (confirm('确定要清空所有位置数据吗？此操作不可撤销！')) {
-                locationData = [];
-                localStorage.removeItem('locationData');
-                loadLocationData();
-
-                // 清除半径圆
-                if (radiusCircle) {
-                    map.removeLayer(radiusCircle);
-                    radiusCircle = null;
-                }
-            }
-        }
-
-        // 导出为Excel文件
-        function exportToExcel() {
-            try {
-                if (!locationData || locationData.length === 0) {
-                    alert('没有可导出的数据');
-                    return;
-                }
-
-                // 准备导出数据
-                const exportData = locationData.map((location, index) => ({
-                    '序号': index + 1,
-                    '纬度': location.latitude,
-                    '经度': location.longitude,
-                    '精确度(米)': location.accuracy,
-                    '评级': location.rating,
-                    '时间': location.timestamp
+                // 添加比例尺控件
+                appState.map.addControl(new mapboxgl.ScaleControl({
+                    maxWidth: 80,
+                    unit: 'metric'
                 }));
 
-                // 创建工作表
-                const ws = XLSX.utils.json_to_sheet(exportData);
+                // 显示示例数据
+                loadData(sampleData);
 
-                // 创建工作簿
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "位置数据");
-
-                // 导出文件
-                const fileName = `位置评级数据_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
-                XLSX.writeFile(wb, fileName);
-            } catch (error) {
-                console.error('导出过程中出错:', error);
-                alert('导出失败: ' + error.message);
-            }
+                // 隐藏加载中遮罩
+                elements.loadingOverlay.classList.add('hidden');
+            });
         }
 
-        // 初始化地图和UI
-        document.addEventListener('DOMContentLoaded', function () {
-            initMap();
-            updateToggleButtons();
-        });
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('concentrationChart').getContext('2d');
 
-        // 导入Excel文件
-        function importFromExcel() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+            appState.concentrationChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '平均浓度',
+                        data: [],
+                        backgroundColor: 'rgba(22, 93, 255, 0.1)',
+                        borderColor: 'rgba(22, 93, 255, 1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '浓度值'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '日期'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
 
-            if (!file) {
-                alert('请选择一个文件');
-                return;
+        // 绑定事件处理程序
+        function bindEvents() {
+            elements.dateFilter.addEventListener('change', applyFilters);
+            elements.clusterRadius.addEventListener('change', applyFilters);
+            // 文件上传
+            elements.fileUpload.addEventListener('change', handleFileUpload);
+
+            // 加载示例数据
+            elements.loadSampleData.addEventListener('click', () => {
+                loadData(sampleData);
+                showNotification('成功', '示例数据已加载', 'success');
+            });
+
+            // 导出数据
+            elements.exportData.addEventListener('click', exportDataToExcel);
+
+            // 应用筛选
+            elements.applyFilters.addEventListener('click', applyFilters);
+
+            // 删除选中数据
+            elements.deleteSelectedData.addEventListener('click', deleteSelectedData);
+
+            // 删除所有数据
+            elements.deleteAllData.addEventListener('click', deleteAllData);
+
+            // 定位我的位置
+            elements.locateMe.addEventListener('click', locateMe);
+
+            // 重置视图
+            elements.resetView.addEventListener('click', resetMapView);
+
+            // 全屏切换
+            elements.toggleFullscreen.addEventListener('click', toggleFullscreen);
+
+            // 下载地图
+            elements.downloadMap.addEventListener('click', downloadMap);
+
+            // 手动数据表单提交
+            elements.manualDataForm.addEventListener('submit', handleManualDataSubmit);
+
+            // 刷新数据
+            elements.refreshData.addEventListener('click', refreshData);
+
+            // 帮助模态框
+            elements.helpBtn.addEventListener('click', showHelpModal);
+            elements.closeHelpModal.addEventListener('click', hideHelpModal);
+            elements.confirmHelpModal.addEventListener('click', hideHelpModal);
+
+            // 主题切换
+            elements.toggleTheme.addEventListener('click', toggleTheme);
+
+            // 关闭通知
+            elements.closeNotification.addEventListener('click', hideNotification);
+            // 地图样式切换
+            const mapStyleSelect = document.getElementById('mapStyleSelect');
+            if (mapStyleSelect) {
+                mapStyleSelect.addEventListener('change', function () {
+                    let style = 'mapbox://styles/mapbox/light-v10';
+                    switch (this.value) {
+                        case 'light':
+                            style = 'mapbox://styles/mapbox/light-v10';
+                            break;
+                        case 'dark':
+                            style = 'mapbox://styles/mapbox/dark-v10';
+                            break;
+                        case 'outdoors':
+                            style = 'mapbox://styles/mapbox/outdoors-v12';
+                            break;
+                        case 'satellite':
+                            style = 'mapbox://styles/mapbox/satellite-v9';
+                            break;
+                        case 'satellite-streets':
+                            style = 'mapbox://styles/mapbox/satellite-streets-v12';
+                            break;
+                    }
+                    if (appState.map) {
+                        appState.map.setStyle(style);
+                    }
+                });
             }
+
+        }
+
+        // 处理文件上传
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading(true);
 
             const reader = new FileReader();
             reader.onload = function (e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
 
-                // 假设数据在第一个工作表中
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
+                    // 获取第一个工作表
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
 
-                // 将工作表转换为 JSON 数据
-                const importedData = XLSX.utils.sheet_to_json(sheet);
+                    // 转换为JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    console.log('sheet_to_json结果:', jsonData);
 
-                // 验证数据格式
-                if (!validateImportedData(importedData)) {
-                    alert('数据格式不正确，请确保包含 "纬度", "经度", "评级" 列');
-                    return;
+
+                    // 处理数据
+                    const processedData = processExcelData(jsonData);
+                    console.log('处理后数据:', processedData);
+
+                    // 为导入的数据生成唯一ID
+                    const dataWithIds = processedData.map(item => ({
+                        ...item,
+                        id: `import_${Math.random().toString(36).substr(2, 9)}`
+                    }));
+
+                    if (dataWithIds.length > 0) {
+                        // 自动切换筛选条件到导入数据的第一条
+                        for (let i = 0; i < elements.gasType.options.length; i++) {
+                            elements.gasType.options[i].selected = dataWithIds.some(d => d.type === elements.gasType.options[i].value);
+                        }
+                        elements.dateFilter.value = dataWithIds[0].date;
+                        // 选中导入数据的类型
+                        appState.selectedGasTypes = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
+                        appState.selectedDate = dataWithIds[0].date;
+                        // 合并数据并刷新
+                        appState.data = [...appState.data, ...dataWithIds];
+                        updateDateFilterOptions();
+                        applyFilters();
+                        showNotification('成功', '数据已成功导入', 'success');
+                    } else {
+                        showNotification('错误', '导入的数据无有效内容', 'error');
+                    }
+
+
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    showNotification('错误', '文件解析失败，请检查文件格式', 'error');
+                } finally {
+                    showLoading(false);
+                    // 重置文件输入，允许重复上传同一文件
+                    event.target.value = '';
                 }
-
-                // 将数据添加到本地存储
-                importedData.forEach(item => {
-                    const newLocation = {
-                        id: Date.now() + Math.random(), // 确保唯一性
-                        latitude: parseFloat(item['纬度']),
-                        longitude: parseFloat(item['经度']),
-                        rating: item['评级'],
-                        timestamp: new Date().toLocaleString()
-                    };
-                    locationData.push(newLocation);
-                });
-
-                // 保存到本地存储
-                localStorage.setItem('locationData', JSON.stringify(locationData));
-
-                // 重新加载地图数据
-                loadLocationData();
-                alert('数据导入成功！');
             };
 
             reader.readAsArrayBuffer(file);
         }
 
-        // 验证导入数据的格式
-        function validateImportedData(data) {
-            return data.every(item => '纬度' in item && '经度' in item && '评级' in item);
+        // 处理Excel数据
+        function processExcelData(jsonData) {
+            return jsonData.map(item => {
+                const lat = parseFloat(
+                    item['纬度'] || item['Latitude'] || item['lat'] ||
+                    item['纬度坐标'] || item['Y坐标'] || item['y']
+                );
+                const lng = parseFloat(
+                    item['经度'] || item['Longitude'] || item['lng'] ||
+                    item['经度坐标'] || item['X坐标'] || item['x']
+                );
+                let date =
+                    item['日期'] || item['Date'] || item['监测日期'] ||
+                    item['date'] || item['采样日期'] || item['时间'];
+                // 处理 Excel 日期为数字的情况
+                if (typeof date === 'number') {
+                    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                    excelEpoch.setDate(excelEpoch.getDate() + date);
+                    date = excelEpoch.toISOString().slice(0, 10);
+                }
+                // 统一日期格式为 yyyy-MM-dd
+                let dateStr = date;
+                if (dateStr && dateStr.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
+                    const [y, m, d] = dateStr.split('/');
+                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                }
+                if (dateStr && dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+                    const [y, m, d] = dateStr.split('-');
+                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                }
+                let type =
+                    item['类型'] || item['气体类型'] || item['Gas Type'] ||
+                    item['type'] || item['污染物类型'] || item['污染类型'];
+                // 标准化气体类型
+                const typeMap = {
+                    'SO2': 'SO2', '二氧化硫': 'SO2',
+                    'NO2': 'NO2', '二氧化氮': 'NO2',
+                    'PM2.5': 'PM2.5', '细颗粒物': 'PM2.5',
+                    'PM10': 'PM10', '可吸入颗粒物': 'PM10',
+                    'CO': 'CO', '一氧化碳': 'CO',
+                    'O3': 'O3', '臭氧': 'O3'
+                };
+                type = typeMap[type] || type;
+                const concentration = parseFloat(
+                    item['浓度'] || item['Concentration'] || item['浓度值'] ||
+                    item['value'] || item['数值'] || item['测量值']
+                );
+                return {
+                    lat,
+                    lng,
+                    date: dateStr,
+                    type,
+                    concentration
+                };
+            }).filter(item =>
+                !isNaN(item.lat) &&
+                !isNaN(item.lng) &&
+                item.date &&
+                item.type &&
+                !isNaN(item.concentration)
+            );
         }
 
-        // 切换风向图层
-        function toggleWindLayer() {
-            windLayerEnabled = !windLayerEnabled;
 
-            if (windLayerEnabled) {
-                // 加载风向图层
-                if (!windyMap) {
-                    const options = {
-                        key: '5PgBaOKGSmPhDKF09SowVprllJfcCVJ7', // 替换为您的Windy API密钥
-                        lat: map.getCenter().lat,
-                        lon: map.getCenter().lng,
-                        zoom: map.getZoom(),
-                        overlay: 'wind',
-                        terrain: true,
-                        menu: false,
-                        waves: false,
-                        pressure: false,
-                        controls: false
-                    };
+        // 导出数据到Excel
+    
+        function exportDataToExcel() {
+            if (appState.data.length === 0) {
+                showNotification('提示', '没有数据可导出', 'info');
+                return;
+            }
 
-                    // 初始化Windy地图
-                    windyInit(options, windyAPI => {
-                        windyMap = windyAPI;
+            try {
+                // 准备要导出的数据
+                const exportData = appState.data.map(item => ({
+                    '纬度': item.lat,
+                    '经度': item.lng,
+                    '日期': item.date,
+                    '类型': item.type, // 这里改为“类型”
+                    '浓度值': item.concentration
+                }));
 
-                        // 将Windy地图叠加到Leaflet地图上
-                        const windyContainer = document.querySelector('.windy-container');
-                        const mapContainer = document.getElementById('map');
-                        mapContainer.appendChild(windyContainer);
+                // 创建工作表
+                const worksheet = XLSX.utils.json_to_sheet(exportData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "污染气体数据");
 
-                        // 同步地图视图
-                        map.on('move', () => {
-                            if (windyMap) {
-                                windyMap.changeView({
-                                    lat: map.getCenter().lat,
-                                    lon: map.getCenter().lng,
-                                    zoom: map.getZoom()
-                                });
-                            }
-                        });
+                // 生成Excel文件并下载
+                const fileName = `污染气体数据_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                XLSX.writeFile(workbook, fileName);
 
-                        // 确保Windy地图完全加载
-                        setTimeout(() => {
-                            map.invalidateSize();
-                        }, 500);
-                    });
-                } else {
-                    // 显示已存在的风向图层
-                    document.querySelector('.windy-container').style.display = 'block';
-                }
-            } else {
-                // 隐藏风向图层
-                if (windyMap) {
-                    document.querySelector('.windy-container').style.display = 'none';
-                }
+                showNotification('成功', '数据已成功导出', 'success');
+            } catch (error) {
+                console.error('导出数据失败:', error);
+                showNotification('错误', '导出数据失败', 'error');
             }
         }
+
+
+        // 加载数据到地图
+        function loadData(data) {
+            // 合并新数据与现有数据
+            appState.data = [...appState.data, ...data];
+
+            // 清除现有图层和源
+            if (appState.map.getLayer('pollution-points')) {
+                appState.map.removeLayer('pollution-points');
+            }
+
+            if (appState.map.getSource('pollution-points')) {
+                appState.map.removeSource('pollution-points');
+            }
+            updateDateFilterOptions();
+            // 应用筛选
+            applyFilters();
+        }
+
+        function applyFilters() {
+            // 获取多选的污染物类型
+            let selectedOptions = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
+            // 如果没有选中任何类型，自动全选
+            appState.selectedGasTypes = selectedOptions;
+            appState.selectedDate = elements.dateFilter.value;
+
+            // 筛选数据
+            let filteredData = [];
+            if (appState.selectedGasTypes.length > 0) {
+                filteredData = appState.data.filter(item =>
+                    appState.selectedGasTypes.includes(item.type) &&
+                    item.date === appState.selectedDate
+                );
+            }
+            // 如果没选任何类型，filteredData 就是空数组
+            // 更新地图
+            updateMap(filteredData);
+
+            // 更新统计信息
+            updateStatistics(filteredData);
+
+            // 更新表格数据
+            updateDataTable(filteredData);
+
+            // 更新图表
+            updateChart(filteredData);
+        }
+        // 更新地图
+        const gasTypeColors = {
+            'SO2': 'rgba(52, 211, 153, 0.92)',     // 亮绿色 #34D399
+            'NO2': 'rgba(245, 158, 66, 0.92)',     // 亮橙色 #F59E42
+            'PM2.5': 'rgba(239, 68, 68, 0.92)',    // 鲜红色 #EF4444
+            'PM10': 'rgba(59, 130, 246, 0.92)',    // 亮蓝色 #3B82F6
+            'CO': 'rgba(251, 191, 36, 0.92)',      // 亮黄色 #FBBF24
+            'O3': 'rgba(167, 139, 250, 0.92)'      // 亮紫色 #A78BFA
+        };
+
+        function updateMap(data) {
+            // 获取页面设置的聚合半径
+            let clusterRadius = 200;
+            if (elements.clusterRadius && elements.clusterRadius.value) {
+                clusterRadius = parseInt(elements.clusterRadius.value, 10) || 200;
+            }
+            // 200米内聚合（同一污染物类型、同一天分别聚合）
+            const clustered = [];
+            const used = new Array(data.length).fill(false);
+
+            for (let i = 0; i < data.length; i++) {
+                if (used[i]) continue;
+                const group = [data[i]];
+                used[i] = true;
+                for (let j = i + 1; j < data.length; j++) {
+                    if (used[j]) continue;
+                    // 只聚合同类型、同日期的数据
+                    if (data[i].type !== data[j].type || data[i].date !== data[j].date) continue;
+                    // 计算两点距离
+                    const dist = turf.distance(
+                        [data[i].lng, data[i].lat],
+                        [data[j].lng, data[j].lat],
+                        { units: 'meters' }
+                    );
+                    if (dist <= clusterRadius) {
+                        group.push(data[j]);
+                        used[j] = true;
+                    }
+                }
+                // 计算聚合点的经纬度（平均），浓度取和
+                const avgLat = group.reduce((sum, p) => sum + p.lat, 0) / group.length;
+                const avgLng = group.reduce((sum, p) => sum + p.lng, 0) / group.length;
+                const sumConcentration = group.reduce((sum, p) => sum + p.concentration, 0);
+                // 取第一个点的其它属性
+                clustered.push({
+                    ...group[0],
+                    lat: avgLat,
+                    lng: avgLng,
+                    concentration: sumConcentration, // 用和
+                    clusterCount: group.length // 聚合数量
+                });
+            }
+            // 用聚合后的数据替换原数据
+            data = clustered;
+            // 以经纬度为key分组
+            const groupByLocation = {};
+            data.forEach(item => {
+                const key = `${item.lat},${item.lng}`;
+                if (!groupByLocation[key]) groupByLocation[key] = [];
+                groupByLocation[key].push(item);
+            });
+            // 先移除所有旧的extrusion图层和source
+            Object.keys(gasTypeColors).forEach(type => {
+                const layerId = `pollution-extrusion-${type}`;
+                const sourceId = `pollution-extrusion-${type}`;
+                if (appState.map.getLayer(layerId)) appState.map.removeLayer(layerId);
+                if (appState.map.getSource(sourceId)) appState.map.removeSource(sourceId);
+            });
+            const typeOrder = ['SO2', 'NO2', 'PM2.5', 'PM10', 'CO', 'O3'];
+            const extrusionFeaturesByType = {};
+            typeOrder.forEach(type => extrusionFeaturesByType[type] = []);
+            // 用于生成每个污染物顶部的label
+            const labelFeatures = [];
+            Object.values(groupByLocation).forEach(group => {
+                // 按 typeOrder 排序，保证堆叠顺序一致
+                group.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
+                let base = 0;
+                group.forEach(item => {
+                    const height = item.concentration;
+                    const type = item.type;
+                    // 柱体高度缩放（可根据实际调整）
+                    const scale = 2;
+                    const feature = turf.point([item.lng, item.lat], {
+                        ...item,
+                        base: base * scale,
+                        height: (base + height) * scale
+                    });
+                    extrusionFeaturesByType[type].push(feature);
+
+                    // 生成每个污染物顶部的label
+                    const gasTypeNames = {
+                        'SO2': '二氧化硫 (SO₂)',
+                        'NO2': '二氧化氮 (NO₂)',
+                        'PM2.5': '细颗粒物 (PM2.5)',
+                        'PM10': '可吸入颗粒物 (PM10)',
+                        'CO': '一氧化碳 (CO)',
+                        'O3': '臭氧 (O₃)'
+                    };
+                    labelFeatures.push({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [item.lng, item.lat]
+                        },
+                        properties: {
+                            id: item.id,
+                            lat: item.lat,
+                            lng: item.lng,
+                            date: item.date,
+                            type: item.type,
+                            typeName: gasTypeNames[item.type] || item.type,
+                            concentration: item.concentration,
+                            isSelected: appState.selectedPoints.some(p => p.id === item.id),
+                            // 用于动态调整label高度
+                            labelOffset: (base + height) * scale
+                        }
+                    });
+
+                    base += height;
+                });
+            });
+
+            // 添加 extrusion 图层
+            Object.keys(gasTypeColors).forEach(type => {
+                const features = extrusionFeaturesByType[type].map(point => {
+                    // buffer 生成小圆柱
+                    const polygon = turf.buffer(point, 0.04, { units: 'kilometers' });
+                    polygon.properties = point.properties;
+                    return polygon;
+                });
+                if (features.length === 0) return;
+                const geojson = {
+                    type: 'FeatureCollection',
+                    features: features
+                };
+                const layerId = `pollution-extrusion-${type}`;
+                const sourceId = `pollution-extrusion-${type}`;
+                appState.map.addSource(sourceId, { type: 'geojson', data: geojson });
+                appState.map.off('click', layerId);
+
+                appState.map.addLayer({
+                    id: layerId,
+                    type: 'fill-extrusion',
+                    source: sourceId,
+                    paint: {
+                        'fill-extrusion-base': ['get', 'base'],
+                        'fill-extrusion-height': ['get', 'height'],
+                        'fill-extrusion-color': gasTypeColors[type] || 'rgba(54, 211, 153, 0.85)',
+                        'fill-extrusion-opacity': 0.85
+                    }
+                });
+                // 绑定点击事件，点击柱体显示监测点数据
+                appState.map.on('click', layerId, function (e) {
+                    if (e.features && e.features.length > 0) {
+                        const feature = e.features[0];
+                        const coords = turf.centerOfMass(feature).geometry.coordinates;
+
+                        // 选中当前数据点
+                        appState.selectedPoints = [{
+                            id: feature.properties.id,
+                            lat: feature.properties.lat,
+                            lng: feature.properties.lng,
+                            date: feature.properties.date,
+                            type: feature.properties.type,
+                            concentration: feature.properties.concentration
+                        }];
+
+                        // 刷新地图和表格的选中状态
+                        applyFilters();
+
+                        // 重新获取最新的 feature（带 isSelected:true）
+                        // 在 applyFilters 后，updateMap 里 labelFeatures 和 extrusionFeatures 都会带 isSelected
+                        // 但此处 feature 还是旧的，可以直接用 appState.selectedPoints[0] 作为 properties
+                        showPopup({
+                            properties: {
+                                ...feature.properties,
+                                isSelected: true // 强制已选中
+                            },
+                            geometry: { coordinates: coords }
+                        });
+
+                        appState.map.flyTo({
+                            center: coords,
+                            zoom: Math.max(appState.map.getZoom(), 14),
+                            speed: 1.2
+                        });
+                    }
+                });
+
+
+
+            });
+            // 其余label和事件绑定逻辑不变
+            // 先移除旧label
+            if (appState.map.getLayer('pollution-label')) {
+                appState.map.removeLayer('pollution-label');
+            }
+            if (appState.map.getSource('pollution-label')) {
+                appState.map.removeSource('pollution-label');
+            }
+            appState.map.addSource('pollution-label', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: data.map(item => {
+                        // 气体类型中英文对照
+                        const gasTypeNames = {
+                            'SO2': '二氧化硫 (SO₂)',
+                            'NO2': '二氧化氮 (NO₂)',
+                            'PM2.5': '细颗粒物 (PM2.5)',
+                            'PM10': '可吸入颗粒物 (PM10)',
+                            'CO': '一氧化碳 (CO)',
+                            'O3': '臭氧 (O₃)'
+                        };
+                        return {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [item.lng, item.lat]
+                            },
+                            properties: {
+                                id: item.id,
+                                lat: item.lat,
+                                lng: item.lng,
+                                date: item.date,
+                                type: item.type,
+                                typeName: gasTypeNames[item.type] || item.type, // 新增
+                                concentration: item.concentration,
+                                isSelected: appState.selectedPoints.some(p => p.id === item.id)
+                            }
+                        };
+                    })
+
+                }
+            });
+            appState.map.addLayer({
+                id: 'pollution-label',
+                type: 'symbol',
+                source: 'pollution-label',
+                layout: {
+                    'icon-image': 'marker-15',
+                    'icon-size': 1.2,
+                    'icon-allow-overlap': true,
+                    'text-field': ['get', 'typeName'],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 12,
+                    'text-offset': [0, 1.2],
+                    'text-anchor': 'top',
+                    'text-optional': true,
+                    'visibility': 'visible'
+                },
+                paint: {
+                    'text-color': '#165DFF',
+                    'text-halo-color': '#fff',
+                    'text-halo-width': 1.5
+                },
+                minzoom: 0,
+                maxzoom: 13
+            });
+
+            // 监听点击污染物类型文字，跳转到该点
+            appState.map.on('click', 'pollution-label', function (e) {
+                if (e.features && e.features.length > 0) {
+                    const feature = e.features[0];
+                    const coords = feature.geometry.coordinates;
+                    appState.map.flyTo({
+                        center: coords,
+                        zoom: Math.max(appState.map.getZoom(), 14),
+                        speed: 1.2
+                    });
+                    showPopup({
+                        properties: feature.properties,
+                        geometry: { coordinates: coords }
+                    });
+                }
+            });
+        }
+
+
+
+
+        // 显示信息弹窗
+        function showPopup(feature) {
+            const { lat, lng, date, type, concentration, isSelected, clusterCount } = feature.properties;
+
+            // 获取气体类型的中文名称
+            const gasTypeNames = {
+                'SO2': '二氧化硫 (SO₂)',
+                'NO2': '二氧化氮 (NO₂)',
+                'PM2.5': '细颗粒物 (PM2.5)',
+                'PM10': '可吸入颗粒物 (PM10)',
+                'CO': '一氧化碳 (CO)',
+                'O3': '臭氧 (O₃)'
+            };
+
+            const gasTypeName = gasTypeNames[type] || type;
+
+            // 创建弹窗内容
+            const popupContent = `
+  <div class="font-inter p-2">
+    <h3 class="font-semibold text-primary">监测点数据</h3>
+    <div class="mt-2 space-y-1">
+      <div class="flex justify-between">
+        <span class="text-gray-600">经纬度:</span>
+        <span class="font-medium">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">日期:</span>
+        <span class="font-medium">${date}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">污染物:</span>
+        <span class="font-medium">${gasTypeName}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">浓度:</span>
+        <span class="font-medium ${getConcentrationClass(concentration)}">${concentration.toFixed(1)} μg/m³</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">聚合点数量:</span>
+        <span class="font-medium">${clusterCount ? clusterCount : 1}</span>
+      </div>
+      <div class="flex justify-between mt-2">
+        <span class="text-xs text-gray-500">状态:</span>
+        <span class="text-xs font-medium ${isSelected ? 'text-primary' : 'text-gray-500'}">${isSelected ? '已选中' : '未选中'}</span>
+      </div>
+    </div>
+  </div>
+`;
+
+            // 创建并显示弹窗
+            if (appState.popup) {
+                appState.popup.remove();
+            }
+            appState.popup = new mapboxgl.Popup({ offset: 25 })
+                .setLngLat([lng, lat])
+                .setHTML(popupContent)
+                .addTo(appState.map);
+        }
+        // 获取浓度对应的CSS类
+        function getConcentrationClass(concentration) {
+            if (concentration < 35) return 'text-green-600';
+            if (concentration < 75) return 'text-yellow-600';
+            return 'text-red-600';
+        }
+
+        // 更新统计信息
+        function updateStatistics(data) {
+            if (data.length === 0) {
+                elements.stationCount.textContent = '0';
+                elements.avgConcentration.textContent = '0';
+                elements.maxConcentration.textContent = '0';
+                elements.minConcentration.textContent = '0';
+                return;
+            }
+
+            const concentrations = data.map(item => item.concentration);
+            const sum = concentrations.reduce((acc, val) => acc + val, 0);
+            const avg = sum / data.length;
+            const max = Math.max(...concentrations);
+            const min = Math.min(...concentrations);
+
+            elements.stationCount.textContent = data.length;
+            elements.avgConcentration.textContent = avg.toFixed(1);
+            elements.maxConcentration.textContent = max.toFixed(1);
+            elements.minConcentration.textContent = min.toFixed(1);
+        }
+
+        // 更新数据表格
+        function updateDataTable(data) {
+            if (data.length === 0) {
+                elements.dataTableBody.innerHTML = `
+              <tr class="text-center">
+                <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
+              </tr>
+            `;
+                return;
+            }
+
+            // 清空表格
+            elements.dataTableBody.innerHTML = '';
+
+            // 气体类型映射
+            const gasTypeNames = {
+                'SO2': '二氧化硫 (SO₂)',
+                'NO2': '二氧化氮 (NO₂)',
+                'PM2.5': '细颗粒物 (PM2.5)',
+                'PM10': '可吸入颗粒物 (PM10)',
+                'CO': '一氧化碳 (CO)',
+                'O3': '臭氧 (O₃)'
+            };
+
+            // 按浓度排序
+            const sortedData = [...data].sort((a, b) => b.concentration - a.concentration);
+
+            // 填充表格
+            sortedData.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+
+                // 检查是否选中
+                const isSelected = appState.selectedPoints.some(p => p.id === item.id);
+
+                row.innerHTML = `
+      <td class="px-3 py-2 whitespace-nowrap">
+        <div class="flex items-center">
+          <div class="w-3 h-3 rounded-full ${getConcentrationColor(item.concentration)} mr-2"></div>
+          ${item.id.startsWith('sample') ? '示例点' : item.id.startsWith('import') ? '导入点' : item.id.startsWith('manual') ? '手动点' : '监测点'}
+        </div>
+      </td>
+      <td class="px-3 py-2 whitespace-nowrap">${item.date}</td>
+      <td class="px-3 py-2 whitespace-nowrap">${gasTypeNames[item.type] || item.type}</td>
+      <td class="px-3 py-2 whitespace-nowrap font-medium ${getConcentrationClass(item.concentration)}">
+        ${item.concentration.toFixed(1)} μg/m³
+        ${isSelected ? '<span class="ml-1 text-xs text-primary">(选中)</span>' : ''}
+      </td>
+    `;
+
+                // 新增：点击表格行选中并弹窗
+                row.addEventListener('click', () => {
+                    // 只选中当前行对应的数据点
+                    appState.selectedPoints = [{
+                        id: item.id,
+                        lat: item.lat,
+                        lng: item.lng,
+                        date: item.date,
+                        type: item.type,
+                        concentration: item.concentration
+                    }];
+                    // 刷新地图和表格
+                    applyFilters();
+
+                    // 弹窗显示
+                    showPopup({
+                        properties: {
+                            ...item,
+                            isSelected: true
+                        },
+                        geometry: { coordinates: [item.lng, item.lat] }
+                    });
+
+                    // 地图飞到该点
+                    appState.map.flyTo({
+                        center: [item.lng, item.lat],
+                        zoom: Math.max(appState.map.getZoom(), 14),
+                        speed: 1.2
+                    });
+                });
+
+                elements.dataTableBody.appendChild(row);
+            });
+
+        }
+
+        // 获取浓度对应的颜色
+        function getConcentrationColor(concentration) {
+            if (concentration < 35) return 'bg-green-500';
+            if (concentration < 75) return 'bg-yellow-500';
+            return 'bg-red-500';
+        }
+
+        // 更新图表
+        function updateChart(data) {
+            if (!appState.concentrationChart) return;
+
+            // 按日期分组计算平均值
+            const dateGroups = {};
+            appState.data.forEach(item => {
+                if (appState.selectedGasTypes && appState.selectedGasTypes.includes(item.type)) {
+                    if (!dateGroups[item.date]) {
+                        dateGroups[item.date] = [];
+                    }
+                    dateGroups[item.date].push(item.concentration);
+                }
+            });
+
+            // 计算每天的平均值
+            const dates = Object.keys(dateGroups).sort();
+            const avgConcentrations = dates.map(date => {
+                const values = dateGroups[date];
+                return values.reduce((acc, val) => acc + val, 0) / values.length;
+            });
+
+            // 更新图表数据
+            appState.concentrationChart.data.labels = dates;
+            appState.concentrationChart.data.datasets[0].data = avgConcentrations;
+            appState.concentrationChart.update();
+        }
+
+        // 删除选中数据
+        function deleteSelectedData() {
+            if (appState.selectedPoints.length === 0) {
+                showNotification('提示', '请先选择要删除的数据点', 'info');
+                return;
+            }
+
+            // 从数据中移除选中的点
+            const selectedIds = appState.selectedPoints.map(p => p.id);
+            appState.data = appState.data.filter(item => !selectedIds.includes(item.id));
+
+            // 清空选中状态
+            appState.selectedPoints = [];
+
+            // 应用筛选以更新地图
+            applyFilters();
+
+            showNotification('成功', `已删除 ${selectedIds.length} 个数据点`, 'success');
+        }
+
+        // 删除所有数据
+        function deleteAllData() {
+            if (appState.data.length === 0) {
+                showNotification('提示', '没有数据可删除', 'info');
+                return;
+            }
+
+            if (confirm('确定要清空所有数据吗？此操作不可撤销。')) {
+                appState.data = [];
+                appState.selectedPoints = [];
+
+                // 应用筛选以更新地图
+                applyFilters();
+                // 删除弹窗
+                if (appState.popup) {
+                    appState.popup.remove();
+                    appState.popup = null;
+                }
+                showNotification('成功', '所有数据已清空', 'success');
+            }
+        }
+
+        // 定位我的位置
+        function locateMe() {
+            if (!navigator.geolocation) {
+                showNotification('错误', '您的浏览器不支持地理位置功能', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+
+                    // 移动地图到当前位置
+                    appState.map.flyTo({
+                        center: [longitude, latitude],
+                        zoom: 12,
+                        speed: 0.8
+                    });
+
+                    showNotification('成功', '已定位到您的当前位置', 'success');
+                    showLoading(false);
+                },
+                (error) => {
+                    console.error('Geolocation error:', error);
+                    showNotification('错误', '无法获取您的位置，请确保已授予位置权限', 'error');
+                    showLoading(false);
+                }
+            );
+        }
+
+        // 重置地图视图
+        function resetMapView() {
+            appState.map.flyTo({
+                center: [116.4074, 39.9042], // 北京中心
+                zoom: 10,
+                speed: 0.8
+            });
+        }
+
+        // 切换全屏
+        function toggleFullscreen() {
+            const mapContainer = document.getElementById('mapContainer');
+
+            if (!document.fullscreenElement) {
+                mapContainer.requestFullscreen().catch(err => {
+                    showNotification('错误', `全屏请求失败: ${err.message}`, 'error');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 下载地图
+        function downloadMap() {
+            showNotification('提示', '地图导出功能正在开发中', 'info');
+        }
+
+        // 处理手动数据提交
+        function handleManualDataSubmit(event) {
+            event.preventDefault();
+
+            // 获取表单数据
+            const lat = parseFloat(document.getElementById('manualLat').value);
+            const lng = parseFloat(document.getElementById('manualLng').value);
+            const date = document.getElementById('manualDate').value;
+            const type = document.getElementById('manualGasType').value;
+            const concentration = parseFloat(document.getElementById('manualConcentration').value);
+
+            // 验证数据
+            if (isNaN(lat) || isNaN(lng) || !date || !type || isNaN(concentration)) {
+                showNotification('错误', '请填写所有必填字段', 'error');
+                return;
+            }
+
+            // 创建新数据点
+            const newDataPoint = {
+                id: `manual_${Math.random().toString(36).substr(2, 9)}`,
+                lat,
+                lng,
+                date,
+                type,
+                concentration
+            };
+
+            // 添加到数据集中
+            appState.data.push(newDataPoint);
+            // 自动切换筛选条件到新数据
+            elements.dateFilter.value = date;
+            appState.selectedDate = date;
+
+            // 只选中新数据的类型
+            for (let i = 0; i < elements.gasType.options.length; i++) {
+                elements.gasType.options[i].selected = (elements.gasType.options[i].value === type);
+            }
+            appState.selectedGasTypes = [type];
+
+            updateDateFilterOptions();
+            applyFilters();
+            // 清空表单
+            elements.manualDataForm.reset();
+
+            // 设置日期为今天
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0];
+            document.getElementById('manualDate').value = formattedDate;
+
+            showNotification('成功', '数据点已添加', 'success');
+        }
+
+        // 刷新数据
+        function refreshData() {
+            applyFilters();
+            showNotification('成功', '数据已刷新', 'success');
+        }
+
+        // 显示帮助模态框
+        function showHelpModal() {
+            elements.helpModal.classList.remove('hidden');
+        }
+
+        // 隐藏帮助模态框
+        function hideHelpModal() {
+            elements.helpModal.classList.add('hidden');
+        }
+
+        // 切换主题
+        function toggleTheme() {
+            appState.isDarkMode = !appState.isDarkMode;
+
+            if (appState.isDarkMode) {
+                document.body.classList.add('bg-gray-900', 'text-white');
+                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
+            } else {
+                document.body.classList.remove('bg-gray-900', 'text-white');
+                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-moon text-gray-600"></i>';
+            }
+
+            // 切换地图样式，并在 style 加载后自动刷新图层
+            if (appState.map) {
+                appState.map.setStyle(appState.isDarkMode
+                    ? 'mapbox://styles/mapbox/dark-v10'
+                    : 'mapbox://styles/mapbox/light-v10'
+                );
+                appState.map.once('style.load', function () {
+                    applyFilters(); // 重新加载自定义图层和数据
+                });
+            }
+        }
+
+        // 显示通知
+        function showNotification(title, message, type = 'info') {
+            // 设置通知内容
+            elements.notificationTitle.textContent = title;
+            elements.notificationMessage.textContent = message;
+
+            // 设置图标和颜色
+            let iconClass = 'fa-info-circle text-blue-500';
+            let bgColor = 'bg-blue-50';
+
+            if (type === 'success') {
+                iconClass = 'fa-check-circle text-green-500';
+                bgColor = 'bg-green-50';
+            } else if (type === 'error') {
+                iconClass = 'fa-exclamation-circle text-red-500';
+                bgColor = 'bg-red-50';
+            } else if (type === 'warning') {
+                iconClass = 'fa-exclamation-triangle text-yellow-500';
+                bgColor = 'bg-yellow-50';
+            }
+
+            elements.notificationIcon.className = `fa ${iconClass}`;
+            elements.notification.className = elements.notification.className.replace(/bg-\w+-\d+/, bgColor);
+
+            // 显示通知
+            elements.notification.classList.remove('translate-y-20', 'opacity-0');
+
+            // 3秒后自动隐藏
+            setTimeout(hideNotification, 3000);
+        }
+
+        // 隐藏通知
+        function hideNotification() {
+            elements.notification.classList.add('translate-y-20', 'opacity-0');
+        }
+
+        // 显示/隐藏加载中
+        function showLoading(show) {
+            if (show) {
+                elements.loadingOverlay.classList.remove('hidden');
+            } else {
+                elements.loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        // 页面加载完成后初始化应用
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
-</html>    
+</html>

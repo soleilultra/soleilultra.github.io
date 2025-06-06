@@ -12,8 +12,10 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -33,6 +35,28 @@
     </script>
 
     <style type="text/tailwindcss">
+        /* 适配暗色模式的弹窗（包括所有子元素） */
+        html.dark .mapboxgl-popup-content {
+            background: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-radius: 0.75rem !important;
+            box-shadow: 0 8px 32px 0 rgba(0,0,0,0.25) !important;
+        }
+
+            html.dark .mapboxgl-popup-content * {
+                color: #f1f5f9 !important;
+                background: transparent !important;
+            }
+
+        html.dark .mapboxgl-popup-tip {
+            border-top-color: #1e293b !important;
+        }
+
+        /* 适配暗色模式的弹窗 */
+        html.dark .mapboxgl-popup-content {
+            background: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
         @layer utilities {
             .content-auto {
                 content-visibility: auto;
@@ -97,20 +121,20 @@
         }
     </style>
 </head>
-<body class="font-inter bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+<body class="font-inter bg-gray-50 dark:bg-gray-700 text-gray-800 min-h-screen flex flex-col">
     <!-- 顶部导航栏 -->
-    <header class="bg-white shadow-md z-50 sticky top-0 transition-all duration-300">
+    <header class="bg-white dark:bg-gray-900 shadow-md z-50 sticky top-0 transition-all duration-300">
         <div class="w-full max-w-full px-2 md:px-4 py-2 md:py-3 flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <i class="fa-solid fa-globe text-primary text-2xl"></i>
-                <h1 class="text-xl md:text-2xl font-bold text-primary">污染气体浓度地图可视化系统</h1>
+                <h1 class="text-xl md:text-2xl font-bold text-primary dark:text-gray-100">污染气体浓度地图可视化系统</h1>
             </div>
             <div class="flex items-center space-x-4">
-                <button id="toggleTheme" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <i class="fa-solid fa-moon text-gray-600"></i>
+                <button id="toggleTheme" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    <i class="fa-solid fa-moon text-gray-600 dark:text-gray-200"></i>
                 </button>
-                <button id="helpBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <i class="fa-solid fa-question-circle text-gray-600"></i>
+                <button id="helpBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    <i class="fa-solid fa-question-circle text-gray-600 dark:text-gray-200"></i>
                 </button>
             </div>
         </div>
@@ -119,19 +143,18 @@
     <!-- 主要内容区 -->
     <main class="flex-1 flex flex-col md:flex-row w-full max-w-full p-2 md:p-6 gap-4 md:gap-6">
         <!-- 左侧控制面板 -->
-        <aside class="w-full md:w-80 bg-white rounded-xl shadow-lg p-3 md:p-5 transition-all duration-300 flex flex-col">
-            <h2 class="text-xl font-bold mb-4 text-dark border-b pb-2 flex items-center">
+        <aside class="w-full md:w-80 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg p-3 md:p-5 transition-all duration-300 flex flex-col">
+            <h2 class="text-xl font-bold mb-4 text-dark dark:text-gray-100 border-b pb-2 flex items-center">
                 <i class="fa-solid fa-sliders text-primary mr-2"></i>控制面板
             </h2>
-
             <!-- 文件上传 -->
-            <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+            <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
                 <h3 class="font-semibold mb-3 flex items-center">
                     <i class="fa-solid fa-file-excel text-primary mr-2"></i>数据导入/导出
                 </h3>
                 <div class="flex flex-col space-y-3">
                     <div class="flex items-center justify-center w-full">
-                        <label for="fileUpload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <label for="fileUpload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                             <div class="flex flex-col items-center justify-center pt-5 pb-6">
                                 <i class="fa-solid fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
                                 <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">点击上传Excel文件</span></p>
@@ -141,38 +164,41 @@
                         </label>
                     </div>
                     <div class="flex space-x-2">
-                        <button id="loadSampleData" class="btn-effect flex-1 py-2 px-4 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex items-center justify-center">
-                            <i class="fa-solid fa-database mr-2"></i>加载示例
-                        </button>
                         <button id="exportData" class="btn-effect flex-1 py-2 px-4 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors flex items-center justify-center">
                             <i class="fa-solid fa-file-export mr-2"></i>导出数据
                         </button>
                     </div>
+
                 </div>
             </div>
 
             <!-- 数据筛选 -->
-            <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+            <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
                 <h3 class="font-semibold mb-3 flex items-center">
                     <i class="fa-solid fa-filter text-primary mr-2"></i>数据筛选
                 </h3>
                 <div class="space-y-4">
                     <!-- 日期选择 -->
                     <div>
-                        <label for="dateFilter" class="block text-sm font-medium text-gray-700 mb-1">选择日期</label>
+                        <label for="dateFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">选择日期</label>
                         <div class="relative">
-                            <input type="date" id="dateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" />
+                            <select id="dateFilter"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400">
+                                <!-- 选项由JS动态填充 -->
+                            </select>
                         </div>
                     </div>
 
                     <!-- 污染气体类型选择 -->
                     <div>
-                        <label for="gasType" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="gasType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                             污染气体类型
                             <span class="text-xs text-gray-400">(按住Ctrl可多选)</span>
                         </label>
 
-                        <select id="gasType" multiple class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none bg-white h-32">
+                        <select id="gasType" multiple
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-nonebg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 h-32">
                             <option value="SO2">二氧化硫 (SO₂)</option>
                             <option value="NO2">二氧化氮 (NO₂)</option>
                             <option value="PM2.5">细颗粒物 (PM2.5)</option>
@@ -181,17 +207,16 @@
                             <option value="O3">臭氧 (O₃)</option>
                         </select>
 
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-300">
                             <i class="fa-solid fa-chevron-down text-xs"></i>
                         </div>
                     </div>
                     <!-- 聚合半径设置 -->
                     <div>
-                        <label for="clusterRadius" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="clusterRadius" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                             聚合半径 (米)
                         </label>
-                        <input type="number" id="clusterRadius" min="0" step="1" value="200"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" />
+                        <input type="number" id="clusterRadius" min="0" step="1" value="200" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" />
                     </div>
                     <!-- 应用筛选按钮 -->
                     <button id="applyFilters" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
@@ -201,7 +226,7 @@
             </div>
 
             <!-- 数据管理 -->
-            <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+            <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
                 <h3 class="font-semibold mb-3 flex items-center">
                     <i class="fa-solid fa-database text-primary mr-2"></i>数据管理
                 </h3>
@@ -216,7 +241,7 @@
             </div>
 
             <!-- 地图控制 -->
-            <div class="p-4 bg-gray-50 rounded-lg">
+            <div class="p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
                 <h3 class="font-semibold mb-3 flex items-center">
                     <i class="fa-solid fa-map text-primary mr-2"></i>地图控制
                 </h3>
@@ -224,7 +249,8 @@
                     <button id="locateMe" class="btn-effect w-full py-2 px-4 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors flex items-center justify-center">
                         <i class="fa-solid fa-location-dot mr-2"></i>定位我的位置
                     </button>
-                    <button id="resetView" class="btn-effect w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center">
+                    <button id="resetView"
+                            class="btn-effect w-full py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center">
                         <i class="fa-solid fa-arrows-rotate mr-2"></i>重置视图
                     </button>
                 </div>
@@ -238,56 +264,62 @@
         <!-- 右侧地图和数据显示区 -->
         <div class="flex-1 flex flex-col gap-4 md:gap-6">
             <!-- 地图容器 -->
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden flex-1 flex flex-col">
+            <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg overflow-hidden flex-1 flex flex-col">
                 <div class="p-4 border-b flex justify-between items-center">
-                    <h2 class="text-xl font-bold text-dark flex items-center">
+                    <h2 class="text-xl font-bold text-dark dark:text-gray-100 flex items-center">
                         <i class="fa-solid fa-map-marked-alt text-primary mr-2"></i>污染气体浓度分布图
                     </h2>
                     <div class="flex space-x-2">
-                        <button id="toggleFullscreen" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                            <i class="fa-solid fa-expand text-gray-600"></i>
+                        <button id="toggleFullscreen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fa-solid fa-expand text-gray-600 dark:text-gray-200 dark:text-gray-200"></i>
                         </button>
-                        <button id="downloadMap" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                            <i class="fa-solid fa-download text-gray-600"></i>
+                        <button id="downloadMap" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fa-solid fa-download text-gray-600 dark:text-gray-200 dark:text-gray-200"></i>
                         </button>
                     </div>
                 </div>
                 <div id="mapContainer" class="flex-1 relative min-h-[320px] md:min-h-[480px]">
                     <!-- 污染物类型图例 -->
-                    <div id="pollutantLegend" class="absolute bottom-4 right-4 bg-white/90 p-3 rounded-lg shadow-lg max-w-xs z-20">
-                        <h3 class="font-semibold text-sm mb-2">污染物类型图例</h3>
-                        <div class="flex flex-col space-y-1 text-xs">
-                            <div class="flex items-center space-x-2">
-                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(52,211,153,0.92)"></span>
-                                <span>二氧化硫 (SO₂)</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(245,158,66,0.92)"></span>
-                                <span>二氧化氮 (NO₂)</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(239,68,68,0.92)"></span>
-                                <span>细颗粒物 (PM2.5)</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(59,130,246,0.92)"></span>
-                                <span>可吸入颗粒物 (PM10)</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(251,191,36,0.92)"></span>
-                                <span>一氧化碳 (CO)</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="inline-block w-4 h-4 rounded" style="background:rgba(167,139,250,0.92)"></span>
-                                <span>臭氧 (O₃)</span>
+                    <div id="pollutantLegend" class="absolute bottom-4 right-4 bg-white/90 dark:bg-gray-800/90 p-3 rounded-lg shadow-lg max-w-xs z-20">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-semibold text-sm text-gray-700 dark:text-gray-200 dark:text-gray-100">污染物类型图例</h3>
+                            <button id="toggleLegendBtn" class="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="收起/展开图例">
+                                <i id="toggleLegendIcon" class="fa fa-chevron-down text-gray-500"></i>
+                            </button>
+                        </div>
+                        <div id="legendContent">
+                            <div class="flex flex-col space-y-1 text-xs text-gray-700 dark:text-gray-200 dark:text-gray-100">
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(52,211,153,0.92)"></span>
+                                    <span>二氧化硫 (SO₂)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(245,158,66,0.92)"></span>
+                                    <span>二氧化氮 (NO₂)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(239,68,68,0.92)"></span>
+                                    <span>细颗粒物 (PM2.5)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(59,130,246,0.92)"></span>
+                                    <span>可吸入颗粒物 (PM10)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(251,191,36,0.92)"></span>
+                                    <span>一氧化碳 (CO)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(167,139,250,0.92)"></span>
+                                    <span>臭氧 (O₃)</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-
                     <!-- 地图样式切换控件 -->
                     <div id="mapStyleSwitcher" style="position:absolute;top:16px;left:16px;z-index:20;">
-                        <select id="mapStyleSelect" class="px-2 py-1 rounded border border-gray-300 bg-white text-sm shadow">
+                        <select id="mapStyleSelect"
+                                class="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100 shadow transition-colors">
                             <option value="light">街道图</option>
                             <option value="dark">暗色图</option>
                             <option value="outdoors">地形图</option>
@@ -302,7 +334,7 @@
                     <div id="loadingOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center z-10 hidden">
                         <div class="flex flex-col items-center">
                             <div class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
-                            <p class="text-gray-600 font-medium">加载中...</p>
+                            <p class="text-gray-600 dark:text-gray-200 font-medium">加载中...</p>
                         </div>
                     </div>
 
@@ -314,86 +346,98 @@
             <!-- 数据统计和输入区 -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 max-h-[320px] overflow-y-auto">
                 <!-- 数据统计卡片 ... -->
-                <div class="bg-white rounded-xl shadow-lg p-5 card-hover">
-                    <h2 class="text-lg font-bold text-dark mb-4 flex items-center">
+                <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg overflow-hidden flex-1 flex flex-col">
+                    <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
                         <i class="fa-solid fa-chart-line text-primary mr-2"></i>数据统计
                     </h2>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">监测点数量</span>
-                            <span id="stationCount" class="text-lg font-semibold text-primary">0</span>
+                    <div class="px-4 pb-4">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <label for="statStartDate" class="text-sm text-gray-600 dark:text-gray-200">起始日期</label>
+                            <input type="date" id="statStartDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
+                            <label for="statEndDate" class="text-sm text-gray-600 dark:text-gray-200">结束日期</label>
+                            <input type="date" id="statEndDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
+                            <button id="statDateApply" class="px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 text-sm">应用</button>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">平均浓度</span>
-                            <span id="avgConcentration" class="text-lg font-semibold text-primary">0</span>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">监测点数量</span>
+                                <span id="stationCount" class="text-lg font-semibold text-primary">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">平均浓度</span>
+                                <span id="avgConcentration" class="text-lg font-semibold text-primary">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最高浓度</span>
+                                <span id="maxConcentration" class="text-lg font-semibold text-danger">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最低浓度</span>
+                                <span id="minConcentration" class="text-lg font-semibold text-secondary">0</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">最高浓度</span>
-                            <span id="maxConcentration" class="text-lg font-semibold text-danger">0</span>
+                        <!-- 图表容器 -->
+                        <div class="mt-4">
+                            <canvas id="concentrationChart" width="400" height="200"></canvas>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">最低浓度</span>
-                            <span id="minConcentration" class="text-lg font-semibold text-secondary">0</span>
-                        </div>
-                    </div>
-
-                    <!-- 图表容器 -->
-                    <div class="mt-4">
-                        <canvas id="concentrationChart" width="400" height="200"></canvas>
                     </div>
                 </div>
-
                 <!-- 实时数据卡片 -->
-                <div class="bg-white rounded-xl shadow-lg p-5 card-hover">
-                    <h2 class="text-lg font-bold text-dark mb-4 flex items-center">
+                <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg card-hover flex flex-col">
+                    <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
                         <i class="fa-solid fa-table text-primary mr-2"></i>实时数据
                     </h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">监测点</th>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">浓度</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200 max-h-64 overflow-y-auto scrollbar-hide">
-                                <!-- 数据将通过JavaScript动态填充 -->
-                                <tr class="text-center">
-                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="mt-4 text-center">
-                        <button id="refreshData" class="btn-effect px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm">
-                            <i class="fa-solid fa-refresh mr-1"></i>刷新数据
-                        </button>
+                    <div class="px-4 pb-4 flex-1 flex flex-col">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 dark:bg-gray-700">
+                                    <tr>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">监测点</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日期</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">类型</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">浓度</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 max-h-64 overflow-y-auto scrollbar-hide">
+                                    <!-- 数据将通过JavaScript动态填充 -->
+                                    <tr class="text-center">
+                                        <td colspan="4" class="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">暂无数据</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-4 text-center">
+                            <button id="refreshData" class="btn-effect px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm">
+                                <i class="fa-solid fa-refresh mr-1"></i>刷新数据
+                            </button>
+                        </div>
                     </div>
                 </div>
-
                 <!-- 手动数据输入卡片 -->
-                <div class="bg-white rounded-xl shadow-lg p-5 card-hover">
-                    <h2 class="text-lg font-bold text-dark mb-4 flex items-center">
+                <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg p-5 card-hover">
+                    <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center">
                         <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
                     </h2>
                     <form id="manualDataForm" class="space-y-4">
                         <div>
-                            <label for="manualLat" class="block text-sm font-medium text-gray-700 mb-1">纬度</label>
-                            <input type="number" id="manualLat" step="any" placeholder="例如: 39.9042" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                            <label for="manualLat" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">纬度</label>
+                            <input type="number" id="manualLat" step="any" placeholder="例如: 39.9042" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
                         </div>
                         <div>
-                            <label for="manualLng" class="block text-sm font-medium text-gray-700 mb-1">经度</label>
-                            <input type="number" id="manualLng" step="any" placeholder="例如: 116.4074" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                            <label for="manualLng" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">经度</label>
+                            <input type="number" id="manualLng" step="any" placeholder="例如: 116.4074" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
                         </div>
                         <div>
-                            <label for="manualDate" class="block text-sm font-medium text-gray-700 mb-1">日期</label>
-                            <input type="date" id="manualDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                            <label for="manualDate" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">日期</label>
+                            <input type="date" id="manualDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100" required>
                         </div>
-                        <div>
-                            <label for="manualGasType" class="block text-sm font-medium text-gray-700 mb-1">污染气体类型</label>
-                            <select id="manualGasType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none">
+                        <div class="relative">
+                            <label for="manualGasType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">污染气体类型</label>
+                            <select id="manualGasType"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
                                 <option value="SO2">二氧化硫 (SO₂)</option>
                                 <option value="NO2">二氧化氮 (NO₂)</option>
                                 <option value="PM2.5">细颗粒物 (PM2.5)</option>
@@ -401,13 +445,15 @@
                                 <option value="CO">一氧化碳 (CO)</option>
                                 <option value="O3">臭氧 (O₃)</option>
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-300">
                                 <i class="fa-solid fa-chevron-down text-xs"></i>
                             </div>
                         </div>
                         <div>
-                            <label for="manualConcentration" class="block text-sm font-medium text-gray-700 mb-1">浓度值</label>
-                            <input type="number" id="manualConcentration" step="any" placeholder="例如: 56.7" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" required>
+                            <label for="manualConcentration" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">浓度值</label>
+                            <input type="number" id="manualConcentration" step="any" placeholder="例如: 56.7"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
                         </div>
                         <button type="submit" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
                             <i class="fa-solid fa-plus mr-2"></i>添加数据
@@ -417,14 +463,13 @@
             </div>
         </div>
     </main>
-
     <!-- 帮助模态框 -->
     <div id="helpModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div class="p-5 border-b flex justify-between items-center">
                 <h2 class="text-xl font-bold text-dark">使用帮助</h2>
-                <button id="closeHelpModal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <i class="fa-solid fa-times text-gray-600"></i>
+                <button id="closeHelpModal" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+                    <i class="fa-solid fa-times text-gray-600 dark:text-gray-200"></i>
                 </button>
             </div>
             <div class="p-5 space-y-4">
@@ -432,13 +477,13 @@
                     <h3 class="font-semibold text-lg mb-2 flex items-center">
                         <i class="fa-solid fa-file-excel text-primary mr-2"></i>数据导入/导出
                     </h3>
-                    <p class="text-gray-600">支持上传Excel文件(.xlsx, .xls)，文件应包含以下列：纬度、经度、日期、污染气体类型、浓度值。也可以导出当前数据为Excel文件。</p>
+                    <p class="text-gray-600 dark:text-gray-200">支持上传Excel文件(.xlsx, .xls)，文件应包含以下列：纬度、经度、日期、污染气体类型、浓度值。也可以导出当前数据为Excel文件。</p>
                 </div>
                 <div>
                     <h3 class="font-semibold text-lg mb-2 flex items-center">
                         <i class="fa-solid fa-map-marked-alt text-primary mr-2"></i>地图操作
                     </h3>
-                    <ul class="text-gray-600 list-disc pl-5 space-y-1">
+                    <ul class="text-gray-600 dark:text-gray-200 list-disc pl-5 space-y-1">
                         <li>点击地图上的柱状图可查看详细数据</li>
                         <li>使用鼠标滚轮或双击放大/缩小地图</li>
                         <li>按住鼠标左键拖动可平移地图</li>
@@ -449,19 +494,19 @@
                     <h3 class="font-semibold text-lg mb-2 flex items-center">
                         <i class="fa-solid fa-filter text-primary mr-2"></i>数据筛选
                     </h3>
-                    <p class="text-gray-600">可通过选择日期和污染气体类型来筛选显示的数据，点击"应用筛选"按钮生效。</p>
+                    <p class="text-gray-600 dark:text-gray-200">可通过选择日期和污染气体类型来筛选显示的数据，点击"应用筛选"按钮生效。</p>
                 </div>
                 <div>
                     <h3 class="font-semibold text-lg mb-2 flex items-center">
                         <i class="fa-solid fa-trash text-primary mr-2"></i>数据删除
                     </h3>
-                    <p class="text-gray-600">点击地图上的柱状图选中数据点后，可使用"删除选中数据"按钮删除该数据点。使用"清空所有数据"按钮可删除所有已加载的数据。</p>
+                    <p class="text-gray-600 dark:text-gray-200">点击地图上的柱状图选中数据点后，可使用"删除选中数据"按钮删除该数据点。使用"清空所有数据"按钮可删除所有已加载的数据。</p>
                 </div>
                 <div>
                     <h3 class="font-semibold text-lg mb-2 flex items-center">
                         <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
                     </h3>
-                    <p class="text-gray-600">可通过手动输入经纬度、日期、气体类型和浓度值来添加新的数据点，添加后将自动显示在地图上。</p>
+                    <p class="text-gray-600 dark:text-gray-200">可通过手动输入经纬度、日期、气体类型和浓度值来添加新的数据点，添加后将自动显示在地图上。</p>
                 </div>
             </div>
             <div class="p-5 border-t flex justify-end">
@@ -471,49 +516,206 @@
             </div>
         </div>
     </div>
-
     <!-- 通知提示 -->
-    <div id="notification" class="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-start">
+    <div id="notification" class="fixed bottom-4 right-4 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg p-4 max-w-xs transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-start">
         <div id="notificationIcon" class="mr-3 text-xl"></div>
         <div>
             <h4 id="notificationTitle" class="font-semibold text-sm"></h4>
-            <p id="notificationMessage" class="text-sm text-gray-600 mt-1"></p>
+            <p id="notificationMessage" class="text-sm text-gray-600 dark:text-gray-200 mt-1"></p>
         </div>
-        <button id="closeNotification" class="ml-4 text-gray-400 hover:text-gray-600">
+        <button id="closeNotification" class="ml-4 text-gray-400 hover:text-gray-600 dark:text-gray-200">
             <i class="fa-solid fa-times"></i>
         </button>
     </div>
-
     <script>
+        //调用高德地图，失败则调用mapbox
+        async function geocodePlaceNameAmap(placeName) {
+            const key = '9328be6acac71977870e8be114ad3c30'; // 替换为你的高德Key
+            const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(placeName)}&output=JSON&key=${key}`;
+
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+
+                if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+                    // 优先选择精确匹配的结果
+                    const exactMatch = data.geocodes.find(g => g.level.includes('门牌号') || g.level.includes('兴趣点'));
+                    const geo = exactMatch || data.geocodes[0];
+
+                    const loc = geo.location.split(',');
+                    return {
+                        lng: parseFloat(loc[0]),
+                        lat: parseFloat(loc[1]),
+                        formattedAddress: geo.formatted_address,
+                        confidence: geo.level // 可信度级别
+                    };
+                }
+            } catch (e) {
+                console.error('高德地理编码错误:', e);
+            }
+            return null;
+        }
+        // 批量高德地理编码（每次最多10个地址）
+        async function batchGeocodeAmap(addressList) {
+            const key = '9328be6acac71977870e8be114ad3c30'; // 替换为你的高德Key
+            // 高德API每次最多支持10个地址
+            const results = {};
+            for (let i = 0; i < addressList.length; i += 10) {
+                const batch = addressList.slice(i, i + 10);
+                const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(batch.join('|'))}&batch=true&output=JSON&key=${key}`;
+                try {
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+                    if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+                        data.geocodes.forEach((geo, idx) => {
+                            if (geo.location) {
+                                const loc = geo.location.split(',');
+                                results[batch[idx]] = {
+                                    lng: parseFloat(loc[0]),
+                                    lat: parseFloat(loc[1]),
+                                    formattedAddress: geo.formatted_address,
+                                    confidence: geo.level
+                                };
+                            } else {
+                                results[batch[idx]] = null;
+                            }
+                        });
+                    } else {
+                        batch.forEach(addr => { results[addr] = null; });
+                    }
+                } catch (e) {
+                    batch.forEach(addr => { results[addr] = null; });
+                }
+            }
+            return results;
+        }
+        // 地址标准化函数
+        function normalizeAddress(address) {
+            if (!address) return '';
+            // 去除特殊字符
+            address = address.replace(/[，。；、]/g, '');
+            // 标准化行政区划名称
+            address = address.replace(/省|自治区|直辖市/g, '省')
+                .replace(/市|自治州|地区|盟/g, '市')
+                .replace(/区|县|旗/g, '区');
+            // 去除多余空格
+            address = address.replace(/\s+/g, '');
+            return address;
+        }
         // 初始化Mapbox地图
-        mapboxgl.accessToken = ''; // 替换为您的Mapbox访问令牌
+        mapboxgl.accessToken = 'pk.eyJ1IjoiazhhdDl6Z28iLCJhIjoiY21hY2h5Mm5tMDNpejJtcXZxYW9kbzA4YyJ9.w4RIBZJv5DOmzfVZQ_FpXw'; // 替换为您的Mapbox访问令牌
+        async function geocodePlaceName(placeName) {
+            const accessToken = mapboxgl.accessToken;
+            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(placeName)}.json?access_token=${accessToken}&limit=1&language=zh`;
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.features && data.features.length > 0) {
+                    return {
+                        lng: data.features[0].center[0],
+                        lat: data.features[0].center[1]
+                    };
+                }
+            } catch (e) { }
+            return null;
+        }
+        // 常见地名补全映射（可根据实际需求扩展）
+        const placeNamePatchMap = {
+            '西安交通大学': { province: '陕西省', city: '西安市', district: '碑林区' },
+            '清华大学': { province: '北京市', city: '北京市', district: '海淀区' },
+            '北京大学': { province: '北京市', city: '北京市', district: '海淀区' },
+            '复旦大学': { province: '上海市', city: '上海市', district: '杨浦区' }
+            // ...可继续添加其它常见地名
+        };
+        // 判断是否在中国境内
+        function outOfChina(lng, lat) {
+            return (lng < 72.004 || lng > 137.8347) || (lat < 0.8293 || lat > 55.8271);
+        }
+        function transformLat(x, y) {
+            var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+            ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+            ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
+            ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
+            return ret;
+        }
+        function transformLng(x, y) {
+            var ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+            ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+            ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
+            ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
+            return ret;
+        }
+        // GCJ-02(火星坐标)转WGS-84
+        function gcj02ToWgs84(lng, lat) {
+            // 如果坐标已经超出中国范围，直接返回
+            if (outOfChina(lng, lat)) {
+                return [lng, lat];
+            }
 
-        // 示例数据
-        const sampleData = [
-            { id: 'sample1', lat: 39.9042, lng: 116.4074, date: '2025-05-10', type: 'PM2.5', concentration: 56.7 },
-            { id: 'sample2', lat: 39.9148, lng: 116.4039, date: '2025-05-10', type: 'NO2', concentration: 42.3 },
-            { id: 'sample3', lat: 39.9245, lng: 116.4142, date: '2025-05-10', type: 'SO2', concentration: 68.9 },
-            { id: 'sample4', lat: 39.9357, lng: 116.4015, date: '2025-05-10', type: 'PM10', concentration: 35.2 },
-            { id: 'sample5', lat: 39.9096, lng: 116.4274, date: '2025-05-10', type: 'CO', concentration: 72.1 },
-            { id: 'sample6', lat: 39.9042, lng: 116.4074, date: '2025-05-11', type: 'O3', concentration: 48.5 },
-            { id: 'sample7', lat: 39.9148, lng: 116.4039, date: '2025-05-11', type: 'NO2', concentration: 39.7 },
-            { id: 'sample8', lat: 39.9245, lng: 116.4142, date: '2025-05-11', type: 'SO2', concentration: 52.3 },
-            { id: 'sample9', lat: 39.9357, lng: 116.4015, date: '2025-05-11', type: 'PM10', concentration: 28.9 },
-            { id: 'sample10', lat: 39.9096, lng: 116.4274, date: '2025-05-11', type: 'CO', concentration: 65.4 }
-        ];
+            const a = 6378245.0; // 长半轴
+            const ee = 0.00669342162296594323; // 扁率
 
+            function transformLat(x, y) {
+                let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+                ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+                ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
+                ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
+                return ret;
+            }
+
+            function transformLng(x, y) {
+                let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+                ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+                ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
+                ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
+                return ret;
+            }
+
+            let dlat = transformLat(lng - 105.0, lat - 35.0);
+            let dlng = transformLng(lng - 105.0, lat - 35.0);
+            let radlat = lat / 180.0 * Math.PI;
+            let magic = Math.sin(radlat);
+            magic = 1 - ee * magic * magic;
+            let sqrtmagic = Math.sqrt(magic);
+            dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
+            dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
+            let mglat = lat + dlat;
+            let mglng = lng + dlng;
+
+            return [lng * 2 - mglng, lat * 2 - mglat];
+        }
+        // WGS-84 转 GCJ-02
+        function wgs84ToGcj02(lng, lat) {
+            if (outOfChina(lng, lat)) {
+                return [lng, lat];
+            }
+            var a = 6378245.0;
+            var ee = 0.00669342162296594323;
+            var dlat = transformLat(lng - 105.0, lat - 35.0);
+            var dlng = transformLng(lng - 105.0, lat - 35.0);
+            var radlat = lat / 180.0 * Math.PI;
+            var magic = Math.sin(radlat);
+            magic = 1 - ee * magic * magic;
+            var sqrtmagic = Math.sqrt(magic);
+            dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
+            dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
+            var mglat = lat + dlat;
+            var mglng = lng + dlng;
+            return [mglng, mglat];
+        }
         // 应用状态
         const appState = {
             data: [],
-            selectedGasTypes: [], // 多选数组
+            selectedGasTypes: [],
             selectedDate: '',
             selectedPoints: [],
             map: null,
             concentrationChart: null,
             isDarkMode: false,
-            popup: null // 新增：保存当前弹窗实例
+            popup: null,
+            navControl: null,      // 新增
+            scaleControl: null     // 新增
         };
-
         // DOM元素
         const elements = {
             fileUpload: document.getElementById('fileUpload'),
@@ -552,20 +754,40 @@
         function updateDateFilterOptions() {
             // 获取所有数据的日期，去重并排序
             const allDates = Array.from(new Set(appState.data.map(item => item.date))).sort();
-            if (allDates.length === 0) return;
+            const dateFilter = elements.dateFilter;
+            if (!dateFilter) return;
 
-            // 设置日期选择器的最小和最大值
-            elements.dateFilter.min = allDates[0];
-            elements.dateFilter.max = allDates[allDates.length - 1];
+            // 清空现有选项
+            dateFilter.innerHTML = '';
+
+            // 没有数据时，添加一个禁用选项
+            if (allDates.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = '无可用日期';
+                opt.disabled = true;
+                opt.selected = true;
+                dateFilter.appendChild(opt);
+                appState.selectedDate = '';
+                return;
+            }
+
+            // 生成选项
+            allDates.forEach(date => {
+                const opt = document.createElement('option');
+                opt.value = date;
+                opt.textContent = date;
+                dateFilter.appendChild(opt);
+            });
 
             // 如果当前选中的日期不在数据中，自动切换到第一个有数据的日期
-            if (!allDates.includes(elements.dateFilter.value)) {
-                elements.dateFilter.value = allDates[0];
+            if (!allDates.includes(dateFilter.value)) {
+                dateFilter.value = allDates[0];
                 appState.selectedDate = allDates[0];
+            } else {
+                appState.selectedDate = dateFilter.value;
             }
         }
-
-
         // 初始化应用
         function initApp() {
             // 设置默认日期为今天
@@ -574,6 +796,14 @@
             elements.dateFilter.value = formattedDate;
             elements.manualDate.value = formattedDate;
             appState.selectedDate = formattedDate;
+            const allDates = [];
+            const statStartDate = document.getElementById('statStartDate');
+            const statEndDate = document.getElementById('statEndDate');
+            if (allDates.length > 0) {
+                statStartDate.value = allDates[0];
+                statEndDate.value = allDates[allDates.length - 1];
+                // 不设置min/max，允许任意选择
+            }
 
             // 默认全选所有类型
             for (let i = 0; i < elements.gasType.options.length; i++) {
@@ -600,33 +830,26 @@
             appState.map = new mapboxgl.Map({
                 container: 'map',
                 style: 'mapbox://styles/mapbox/light-v10',
-                center: [116.4074, 39.9042], // 北京中心
+                center: [116.4074, 39.9042],
                 zoom: 10
             });
-
-            // 地图加载完成后
             appState.map.on('load', () => {
-                // 添加导航控件
-                appState.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-                // 添加比例尺控件
-                appState.map.addControl(new mapboxgl.ScaleControl({
+                // 初始化控件实例并添加
+                appState.navControl = new mapboxgl.NavigationControl();
+                appState.scaleControl = new mapboxgl.ScaleControl({
                     maxWidth: 80,
                     unit: 'metric'
-                }));
+                });
+                appState.map.addControl(appState.navControl, 'top-right');
+                appState.map.addControl(appState.scaleControl);
 
-                // 显示示例数据
-                loadData(sampleData);
-
-                // 隐藏加载中遮罩
+                // 不加载任何数据
                 elements.loadingOverlay.classList.add('hidden');
             });
         }
-
         // 初始化图表
         function initChart() {
             const ctx = document.getElementById('concentrationChart').getContext('2d');
-
             appState.concentrationChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -667,19 +890,15 @@
                 }
             });
         }
-
         // 绑定事件处理程序
         function bindEvents() {
+            document.getElementById('statDateApply').addEventListener('click', function () {
+                applyFilters(); // 触发统计图表刷新
+            });
             elements.dateFilter.addEventListener('change', applyFilters);
             elements.clusterRadius.addEventListener('change', applyFilters);
             // 文件上传
             elements.fileUpload.addEventListener('change', handleFileUpload);
-
-            // 加载示例数据
-            elements.loadSampleData.addEventListener('click', () => {
-                loadData(sampleData);
-                showNotification('成功', '示例数据已加载', 'success');
-            });
 
             // 导出数据
             elements.exportData.addEventListener('click', exportDataToExcel);
@@ -726,63 +945,249 @@
             if (mapStyleSelect) {
                 mapStyleSelect.addEventListener('change', function () {
                     let style = 'mapbox://styles/mapbox/light-v10';
+                    let isDark = false;
                     switch (this.value) {
                         case 'light':
                             style = 'mapbox://styles/mapbox/light-v10';
+                            isDark = false;
                             break;
                         case 'dark':
                             style = 'mapbox://styles/mapbox/dark-v10';
+                            isDark = true;
                             break;
                         case 'outdoors':
                             style = 'mapbox://styles/mapbox/outdoors-v12';
+                            isDark = false;
                             break;
                         case 'satellite':
                             style = 'mapbox://styles/mapbox/satellite-v9';
+                            isDark = false;
                             break;
                         case 'satellite-streets':
                             style = 'mapbox://styles/mapbox/satellite-streets-v12';
+                            isDark = false;
                             break;
+                    }
+                    // 同步页面主题
+                    appState.isDarkMode = isDark;
+                    if (isDark) {
+                        document.documentElement.classList.add('dark');
+                        elements.toggleTheme.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        elements.toggleTheme.innerHTML = '<i class="fa-solid fa-moon text-gray-600 dark:text-gray-200"></i>';
                     }
                     if (appState.map) {
                         appState.map.setStyle(style);
+                        appState.map.once('style.load', function () {
+                            // 先移除旧控件（如果有）
+                            try { if (appState.navControl) appState.map.removeControl(appState.navControl); } catch (e) { }
+                            try { if (appState.scaleControl) appState.map.removeControl(appState.scaleControl); } catch (e) { }
+                            // 重新创建并添加控件
+                            appState.navControl = new mapboxgl.NavigationControl();
+                            appState.scaleControl = new mapboxgl.ScaleControl({
+                                maxWidth: 80,
+                                unit: 'metric'
+                            });
+                            appState.map.addControl(appState.navControl, 'top-right');
+                            appState.map.addControl(appState.scaleControl);
+                            // 重新加载数据和图层
+                            applyFilters();
+                        });
                     }
                 });
             }
-
         }
+        // 处理Excel数据
+        async function processExcelData(jsonData) {
+            const geoCache = {}; // 地名到经纬度的缓存
+            const placeFields = ['站点名称', '地点', '位置', '地址', 'site', 'place', 'location', 'name', '监测点'];
+            const results = [];
+            const addressMap = {}; // fullAddress => [item, ...]
+            const addressList = [];
 
+            // 1. 预处理，收集所有需要地理编码的地址
+            for (const item of jsonData) {
+                let lat = parseFloat(
+                    item['纬度'] || item['Latitude'] || item['lat'] ||
+                    item['纬度坐标'] || item['Y坐标'] || item['y']
+                );
+                let lng = parseFloat(
+                    item['经度'] || item['Longitude'] || item['lng'] ||
+                    item['经度坐标'] || item['X坐标'] || item['x']
+                );
+                if (isNaN(lat) || isNaN(lng)) {
+                    let addressParts = [
+                        item['省'] || item['province'] || '',
+                        item['市'] || item['city'] || '',
+                        item['区'] || item['district'] || item['县'] || item['county'] || ''
+                    ];
+                    // 只取第一个有值的地点/地址/站点名称
+                    let place = placeFields.map(f => item[f]).find(Boolean) || '';
+                    if (place) addressParts.push(place);
+
+                    const fullAddress = normalizeAddress(addressParts.filter(Boolean).join(''));
+                    if (fullAddress) {
+                        if (!addressMap[fullAddress]) {
+                            addressMap[fullAddress] = [];
+                            addressList.push(fullAddress);
+                        }
+                        addressMap[fullAddress].push(item);
+                    }
+                }
+            }
+
+            // 2. 批量地理编码
+            let geoResults = {};
+            if (addressList.length > 0) {
+                geoResults = await batchGeocodeAmap(addressList);
+            }
+
+            // 3. 处理每条数据
+            for (const item of jsonData) {
+                let lat = parseFloat(
+                    item['纬度'] || item['Latitude'] || item['lat'] ||
+                    item['纬度坐标'] || item['Y坐标'] || item['y']
+                );
+                let lng = parseFloat(
+                    item['经度'] || item['Longitude'] || item['lng'] ||
+                    item['经度坐标'] || item['X坐标'] || item['x']
+                );
+                let usedBatchGeo = false;
+                if (isNaN(lat) || isNaN(lng)) {
+                    let addressParts = [];
+                    if (item['省'] || item['province']) addressParts.push(item['省'] || item['province']);
+                    if (item['市'] || item['city']) addressParts.push(item['市'] || item['city']);
+                    if (item['区'] || item['district'] || item['县'] || item['county']) {
+                        addressParts.push(item['区'] || item['district'] || item['县'] || item['county']);
+                    }
+                    for (const field of placeFields) {
+                        if (item[field]) {
+                            addressParts.push(item[field]);
+                            break;
+                        }
+                    }
+                    const fullAddress = normalizeAddress(addressParts.filter(Boolean).join(''));
+                    console.log('地理编码请求地址:', fullAddress);
+                    console.log('地理编码返回:', geoResults[fullAddress]);
+                    if (fullAddress && geoResults[fullAddress] && !outOfChina(geoResults[fullAddress].lng, geoResults[fullAddress].lat))
+                    {
+                        [lng, lat] = gcj02ToWgs84(geoResults[fullAddress].lng, geoResults[fullAddress].lat);
+                        usedBatchGeo = true;
+                    } else if (fullAddress) {
+                        showNotification('警告', `无法解析地址: ${fullAddress}`, 'warning');
+                        results.push({
+                            error: `无法解析地址: ${fullAddress}`,
+                            rawData: item
+                        });
+                        continue;
+                    }
+                }
+                // 其余处理逻辑保持不变...
+                let date =
+                    item['日期'] || item['Date'] || item['监测日期'] ||
+                    item['date'] || item['采样日期'] || item['时间'];
+                if (typeof date === 'number') {
+                    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                    excelEpoch.setDate(excelEpoch.getDate() + date);
+                    date = excelEpoch.toISOString().slice(0, 10);
+                }
+                let dateStr = date;
+                if (dateStr && dateStr.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
+                    const [y, m, d] = dateStr.split('/');
+                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                }
+                if (dateStr && dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+                    const [y, m, d] = dateStr.split('-');
+                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                }
+                let type =
+                    item['类型'] || item['气体类型'] || item['Gas Type'] ||
+                    item['type'] || item['污染物类型'] || item['污染类型'];
+                const typeMap = {
+                    'SO2': 'SO2', '二氧化硫': 'SO2',
+                    'NO2': 'NO2', '二氧化氮': 'NO2',
+                    'PM2.5': 'PM2.5', '细颗粒物': 'PM2.5',
+                    'PM10': 'PM10', '可吸入颗粒物': 'PM10',
+                    'CO': 'CO', '一氧化碳': 'CO',
+                    'O3': 'O3', '臭氧': 'O3'
+                };
+                type = typeMap[type] || type;
+                const concentration = parseFloat(
+                    item['浓度'] || item['Concentration'] || item['浓度值'] ||
+                    item['value'] || item['数值'] || item['测量值']
+                );
+                if (!isNaN(lat) && !isNaN(lng) && dateStr && type && !isNaN(concentration)) {
+                    results.push({
+                        lat,
+                        lng,
+                        date: dateStr,
+                        type,
+                        concentration,
+                        province: item['省'] || item['province'] || '',
+                        city: item['市'] || item['city'] || '',
+                        district: item['区'] || item['县'] || item['区/县'] || item['district'] || item['county'] || '',
+                        placeName: placeFields.map(f => item[f]).find(Boolean) || ''
+                    });
+                }
+            }
+            return results;
+        }
         // 处理文件上传
-        function handleFileUpload(event) {
+        async function handleFileUpload(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file || !/\.(xlsx|xls)$/i.test(file.name)) {
+                showNotification('错误', '请上传Excel文件（.xlsx或.xls）', 'error');
+                return;
+            }
+            if (file.size === 0) {
+                showNotification('错误', '文件为空', 'error');
+                return;
+            }
 
             showLoading(true);
-
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = async function (e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    let workbook;
+                    try {
+                        workbook = XLSX.read(data, { type: 'array' });
+                    } catch (err) {
+                        showNotification('错误', 'Excel文件格式不正确或已损坏', 'error');
+                        return;
+                    }
 
                     // 获取第一个工作表
                     const firstSheetName = workbook.SheetNames[0];
+                    if (!firstSheetName) {
+                        showNotification('错误', 'Excel文件无有效工作表', 'error');
+                        return;
+                    }
                     const worksheet = workbook.Sheets[firstSheetName];
+
+                    // 检查原始内容
+                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    if (!rawRows || rawRows.length < 2) {
+                        showNotification('错误', 'Excel文件无有效数据', 'error');
+                        return;
+                    }
 
                     // 转换为JSON
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    console.log('sheet_to_json结果:', jsonData);
+                    if (!jsonData || jsonData.length === 0) {
+                        showNotification('错误', 'Excel文件无有效数据', 'error');
+                        return;
+                    }
 
-
-                    // 处理数据
-                    const processedData = processExcelData(jsonData);
-                    console.log('处理后数据:', processedData);
+                    // 处理数据（异步）
+                    const processedData = await processExcelData(jsonData);
 
                     // 为导入的数据生成唯一ID
                     const dataWithIds = processedData.map(item => ({
                         ...item,
                         id: `import_${Math.random().toString(36).substr(2, 9)}`
                     }));
-
                     if (dataWithIds.length > 0) {
                         // 自动切换筛选条件到导入数据的第一条
                         for (let i = 0; i < elements.gasType.options.length; i++) {
@@ -800,103 +1205,42 @@
                     } else {
                         showNotification('错误', '导入的数据无有效内容', 'error');
                     }
-
-
                 } catch (error) {
                     console.error('Error reading file:', error);
-                    showNotification('错误', '文件解析失败，请检查文件格式', 'error');
+                    showNotification('错误', `文件解析失败: ${error.message}`, 'error');
                 } finally {
                     showLoading(false);
                     // 重置文件输入，允许重复上传同一文件
                     event.target.value = '';
                 }
             };
-
             reader.readAsArrayBuffer(file);
         }
-
-        // 处理Excel数据
-        function processExcelData(jsonData) {
-            return jsonData.map(item => {
-                const lat = parseFloat(
-                    item['纬度'] || item['Latitude'] || item['lat'] ||
-                    item['纬度坐标'] || item['Y坐标'] || item['y']
-                );
-                const lng = parseFloat(
-                    item['经度'] || item['Longitude'] || item['lng'] ||
-                    item['经度坐标'] || item['X坐标'] || item['x']
-                );
-                let date =
-                    item['日期'] || item['Date'] || item['监测日期'] ||
-                    item['date'] || item['采样日期'] || item['时间'];
-                // 处理 Excel 日期为数字的情况
-                if (typeof date === 'number') {
-                    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-                    excelEpoch.setDate(excelEpoch.getDate() + date);
-                    date = excelEpoch.toISOString().slice(0, 10);
-                }
-                // 统一日期格式为 yyyy-MM-dd
-                let dateStr = date;
-                if (dateStr && dateStr.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
-                    const [y, m, d] = dateStr.split('/');
-                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-                }
-                if (dateStr && dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
-                    const [y, m, d] = dateStr.split('-');
-                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-                }
-                let type =
-                    item['类型'] || item['气体类型'] || item['Gas Type'] ||
-                    item['type'] || item['污染物类型'] || item['污染类型'];
-                // 标准化气体类型
-                const typeMap = {
-                    'SO2': 'SO2', '二氧化硫': 'SO2',
-                    'NO2': 'NO2', '二氧化氮': 'NO2',
-                    'PM2.5': 'PM2.5', '细颗粒物': 'PM2.5',
-                    'PM10': 'PM10', '可吸入颗粒物': 'PM10',
-                    'CO': 'CO', '一氧化碳': 'CO',
-                    'O3': 'O3', '臭氧': 'O3'
-                };
-                type = typeMap[type] || type;
-                const concentration = parseFloat(
-                    item['浓度'] || item['Concentration'] || item['浓度值'] ||
-                    item['value'] || item['数值'] || item['测量值']
-                );
-                return {
-                    lat,
-                    lng,
-                    date: dateStr,
-                    type,
-                    concentration
-                };
-            }).filter(item =>
-                !isNaN(item.lat) &&
-                !isNaN(item.lng) &&
-                item.date &&
-                item.type &&
-                !isNaN(item.concentration)
-            );
-        }
-
-
         // 导出数据到Excel
-    
         function exportDataToExcel() {
             if (appState.data.length === 0) {
                 showNotification('提示', '没有数据可导出', 'info');
                 return;
             }
-
             try {
-                // 准备要导出的数据
-                const exportData = appState.data.map(item => ({
-                    '纬度': item.lat,
-                    '经度': item.lng,
-                    '日期': item.date,
-                    '类型': item.type, // 这里改为“类型”
-                    '浓度值': item.concentration
-                }));
-
+                // 导出为高德(GCJ-02)坐标
+                const exportData = appState.data.map(item => {
+                    let gcj = [item.lng, item.lat];
+                    if (!outOfChina(item.lng, item.lat)) {
+                        gcj = wgs84ToGcj02(item.lng, item.lat);
+                    }
+                    return {
+                        '省': item.province || '',
+                        '市': item.city || '',
+                        '区/县': item.district || '',
+                        '地点': item.placeName || '',
+                        '经度': gcj[0],
+                        '纬度': gcj[1],
+                        '日期': item.date,
+                        '类型': item.type,
+                        '浓度值': item.concentration
+                    };
+                });
                 // 创建工作表
                 const worksheet = XLSX.utils.json_to_sheet(exportData);
                 const workbook = XLSX.utils.book_new();
@@ -912,7 +1256,6 @@
                 showNotification('错误', '导出数据失败', 'error');
             }
         }
-
 
         // 加载数据到地图
         function loadData(data) {
@@ -931,14 +1274,12 @@
             // 应用筛选
             applyFilters();
         }
-
         function applyFilters() {
             // 获取多选的污染物类型
             let selectedOptions = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
             // 如果没有选中任何类型，自动全选
             appState.selectedGasTypes = selectedOptions;
             appState.selectedDate = elements.dateFilter.value;
-
             // 筛选数据
             let filteredData = [];
             if (appState.selectedGasTypes.length > 0) {
@@ -950,15 +1291,29 @@
             // 如果没选任何类型，filteredData 就是空数组
             // 更新地图
             updateMap(filteredData);
-
             // 更新统计信息
             updateStatistics(filteredData);
-
             // 更新表格数据
             updateDataTable(filteredData);
-
             // 更新图表
             updateChart(filteredData);
+            // 如果有选中点，弹出popup并飞到该点
+            if (appState.selectedPoints.length === 1) {
+                const p = appState.selectedPoints[0];
+                appState.map.flyTo({
+                    center: [p.lng, p.lat],
+                    zoom: Math.max(appState.map.getZoom(), 14),
+                    speed: 1.2
+                });
+                showPopup({
+                    properties: {
+                        ...p,
+                        isSelected: true
+                    },
+                    geometry: { coordinates: [p.lng, p.lat] }
+                });
+            }
+
         }
         // 更新地图
         const gasTypeColors = {
@@ -971,85 +1326,94 @@
         };
 
         function updateMap(data) {
-            // 获取页面设置的聚合半径
+            // 1. GCJ-02 -> WGS-84，供地图渲染用
+            const dataForMap = data.map(item => {
+                const [wgsLng, wgsLat] = outOfChina(item.lng, item.lat) ? [item.lng, item.lat] : gcj02ToWgs84(item.lng, item.lat);
+                return { ...item, wgsLng, wgsLat };
+            });
+
+            // 2. 聚合逻辑（仍用GCJ-02，聚合精度更高）
             let clusterRadius = 200;
             if (elements.clusterRadius && elements.clusterRadius.value) {
                 clusterRadius = parseInt(elements.clusterRadius.value, 10) || 200;
             }
-            // 200米内聚合（同一污染物类型、同一天分别聚合）
             const clustered = [];
-            const used = new Array(data.length).fill(false);
+            const used = new Array(dataForMap.length).fill(false);
 
-            for (let i = 0; i < data.length; i++) {
+            for (let i = 0; i < dataForMap.length; i++) {
                 if (used[i]) continue;
-                const group = [data[i]];
+                const group = [dataForMap[i]];
                 used[i] = true;
-                for (let j = i + 1; j < data.length; j++) {
+                for (let j = i + 1; j < dataForMap.length; j++) {
                     if (used[j]) continue;
                     // 只聚合同类型、同日期的数据
-                    if (data[i].type !== data[j].type || data[i].date !== data[j].date) continue;
-                    // 计算两点距离
+                    if (dataForMap[i].type !== dataForMap[j].type || dataForMap[i].date !== dataForMap[j].date) continue;
+                    // 计算两点距离（用GCJ-02坐标）
                     const dist = turf.distance(
-                        [data[i].lng, data[i].lat],
-                        [data[j].lng, data[j].lat],
+                        [dataForMap[i].lng, dataForMap[i].lat],
+                        [dataForMap[j].lng, dataForMap[j].lat],
                         { units: 'meters' }
                     );
                     if (dist <= clusterRadius) {
-                        group.push(data[j]);
+                        group.push(dataForMap[j]);
                         used[j] = true;
                     }
                 }
-                // 计算聚合点的经纬度（平均），浓度取和
+                // 计算聚合点的GCJ-02经纬度（平均），浓度取和
                 const avgLat = group.reduce((sum, p) => sum + p.lat, 0) / group.length;
                 const avgLng = group.reduce((sum, p) => sum + p.lng, 0) / group.length;
                 const sumConcentration = group.reduce((sum, p) => sum + p.concentration, 0);
-                // 取第一个点的其它属性
+                // 转为WGS-84用于地图渲染
+                const [wgsLng, wgsLat] = outOfChina(avgLng, avgLat) ? [avgLng, avgLat] : gcj02ToWgs84(avgLng, avgLat);
                 clustered.push({
                     ...group[0],
                     lat: avgLat,
                     lng: avgLng,
-                    concentration: sumConcentration, // 用和
-                    clusterCount: group.length // 聚合数量
+                    wgsLat,
+                    wgsLng,
+                    concentration: sumConcentration,
+                    clusterCount: group.length
                 });
             }
-            // 用聚合后的数据替换原数据
-            data = clustered;
-            // 以经纬度为key分组
+
+            // 3. 以WGS-84经纬度为key分组
             const groupByLocation = {};
-            data.forEach(item => {
-                const key = `${item.lat},${item.lng}`;
+            clustered.forEach(item => {
+                const key = `${item.wgsLat},${item.wgsLng}`;
                 if (!groupByLocation[key]) groupByLocation[key] = [];
                 groupByLocation[key].push(item);
             });
-            // 先移除所有旧的extrusion图层和source
+
+            // 4. 移除旧图层和source
             Object.keys(gasTypeColors).forEach(type => {
                 const layerId = `pollution-extrusion-${type}`;
                 const sourceId = `pollution-extrusion-${type}`;
                 if (appState.map.getLayer(layerId)) appState.map.removeLayer(layerId);
+                if (appState.map.getLayer(layerId + '-outline')) appState.map.removeLayer(layerId + '-outline');
                 if (appState.map.getSource(sourceId)) appState.map.removeSource(sourceId);
             });
+
             const typeOrder = ['SO2', 'NO2', 'PM2.5', 'PM10', 'CO', 'O3'];
             const extrusionFeaturesByType = {};
             typeOrder.forEach(type => extrusionFeaturesByType[type] = []);
-            // 用于生成每个污染物顶部的label
             const labelFeatures = [];
+
             Object.values(groupByLocation).forEach(group => {
-                // 按 typeOrder 排序，保证堆叠顺序一致
                 group.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
                 let base = 0;
                 group.forEach(item => {
                     const height = item.concentration;
                     const type = item.type;
-                    // 柱体高度缩放（可根据实际调整）
                     const scale = 2;
-                    const feature = turf.point([item.lng, item.lat], {
+                    // 用WGS-84坐标生成点
+                    const feature = turf.point([item.wgsLng, item.wgsLat], {
                         ...item,
                         base: base * scale,
                         height: (base + height) * scale
                     });
                     extrusionFeaturesByType[type].push(feature);
 
-                    // 生成每个污染物顶部的label
+                    // label
                     const gasTypeNames = {
                         'SO2': '二氧化硫 (SO₂)',
                         'NO2': '二氧化氮 (NO₂)',
@@ -1062,18 +1426,19 @@
                         type: 'Feature',
                         geometry: {
                             type: 'Point',
-                            coordinates: [item.lng, item.lat]
+                            coordinates: [item.wgsLng, item.wgsLat]
                         },
                         properties: {
                             id: item.id,
                             lat: item.lat,
                             lng: item.lng,
+                            wgsLat: item.wgsLat,
+                            wgsLng: item.wgsLng,
                             date: item.date,
                             type: item.type,
                             typeName: gasTypeNames[item.type] || item.type,
                             concentration: item.concentration,
                             isSelected: appState.selectedPoints.some(p => p.id === item.id),
-                            // 用于动态调整label高度
                             labelOffset: (base + height) * scale
                         }
                     });
@@ -1082,11 +1447,10 @@
                 });
             });
 
-            // 添加 extrusion 图层
+            // 5. extrusion图层
             Object.keys(gasTypeColors).forEach(type => {
                 const features = extrusionFeaturesByType[type].map(point => {
-                    // buffer 生成小圆柱
-                    const polygon = turf.buffer(point, 0.04, { units: 'kilometers' });
+                    const polygon = turf.buffer(point, 0.05, { units: 'kilometers', steps: 32 });
                     polygon.properties = point.properties;
                     return polygon;
                 });
@@ -1108,16 +1472,26 @@
                         'fill-extrusion-base': ['get', 'base'],
                         'fill-extrusion-height': ['get', 'height'],
                         'fill-extrusion-color': gasTypeColors[type] || 'rgba(54, 211, 153, 0.85)',
-                        'fill-extrusion-opacity': 0.85
+                        'fill-extrusion-opacity': 0.92,
+                        'fill-extrusion-vertical-gradient': false
                     }
                 });
-                // 绑定点击事件，点击柱体显示监测点数据
+
+                appState.map.addLayer({
+                    id: layerId + '-outline',
+                    type: 'line',
+                    source: sourceId,
+                    paint: {
+                        'line-color': '#222',
+                        'line-width': 1.2,
+                        'line-opacity': 0.25
+                    }
+                });
+
                 appState.map.on('click', layerId, function (e) {
                     if (e.features && e.features.length > 0) {
                         const feature = e.features[0];
                         const coords = turf.centerOfMass(feature).geometry.coordinates;
-
-                        // 选中当前数据点
                         appState.selectedPoints = [{
                             id: feature.properties.id,
                             lat: feature.properties.lat,
@@ -1126,21 +1500,21 @@
                             type: feature.properties.type,
                             concentration: feature.properties.concentration
                         }];
-
-                        // 刷新地图和表格的选中状态
-                        applyFilters();
-
-                        // 重新获取最新的 feature（带 isSelected:true）
-                        // 在 applyFilters 后，updateMap 里 labelFeatures 和 extrusionFeatures 都会带 isSelected
-                        // 但此处 feature 还是旧的，可以直接用 appState.selectedPoints[0] 作为 properties
+                        let filteredData = [];
+                        if (appState.selectedGasTypes.length > 0) {
+                            filteredData = appState.data.filter(item =>
+                                appState.selectedGasTypes.includes(item.type) &&
+                                item.date === appState.selectedDate
+                            );
+                        }
+                        updateDataTable(filteredData);
                         showPopup({
                             properties: {
                                 ...feature.properties,
-                                isSelected: true // 强制已选中
+                                isSelected: true
                             },
                             geometry: { coordinates: coords }
                         });
-
                         appState.map.flyTo({
                             center: coords,
                             zoom: Math.max(appState.map.getZoom(), 14),
@@ -1148,12 +1522,9 @@
                         });
                     }
                 });
-
-
-
             });
-            // 其余label和事件绑定逻辑不变
-            // 先移除旧label
+
+            // 6. label图层
             if (appState.map.getLayer('pollution-label')) {
                 appState.map.removeLayer('pollution-label');
             }
@@ -1164,35 +1535,7 @@
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
-                    features: data.map(item => {
-                        // 气体类型中英文对照
-                        const gasTypeNames = {
-                            'SO2': '二氧化硫 (SO₂)',
-                            'NO2': '二氧化氮 (NO₂)',
-                            'PM2.5': '细颗粒物 (PM2.5)',
-                            'PM10': '可吸入颗粒物 (PM10)',
-                            'CO': '一氧化碳 (CO)',
-                            'O3': '臭氧 (O₃)'
-                        };
-                        return {
-                            type: 'Feature',
-                            geometry: {
-                                type: 'Point',
-                                coordinates: [item.lng, item.lat]
-                            },
-                            properties: {
-                                id: item.id,
-                                lat: item.lat,
-                                lng: item.lng,
-                                date: item.date,
-                                type: item.type,
-                                typeName: gasTypeNames[item.type] || item.type, // 新增
-                                concentration: item.concentration,
-                                isSelected: appState.selectedPoints.some(p => p.id === item.id)
-                            }
-                        };
-                    })
-
+                    features: labelFeatures
                 }
             });
             appState.map.addLayer({
@@ -1220,7 +1563,6 @@
                 maxzoom: 13
             });
 
-            // 监听点击污染物类型文字，跳转到该点
             appState.map.on('click', 'pollution-label', function (e) {
                 if (e.features && e.features.length > 0) {
                     const feature = e.features[0];
@@ -1237,10 +1579,6 @@
                 }
             });
         }
-
-
-
-
         // 显示信息弹窗
         function showPopup(feature) {
             const { lat, lng, date, type, concentration, isSelected, clusterCount } = feature.properties;
@@ -1257,37 +1595,44 @@
 
             const gasTypeName = gasTypeNames[type] || type;
 
-            // 创建弹窗内容
+            // 检查是否为暗色模式
+            const isDark = document.documentElement.classList.contains('dark');
+
+            // 创建弹窗内容，适配暗色模式
             const popupContent = `
-  <div class="font-inter p-2">
-    <h3 class="font-semibold text-primary">监测点数据</h3>
-    <div class="mt-2 space-y-1">
-      <div class="flex justify-between">
-        <span class="text-gray-600">经纬度:</span>
-        <span class="font-medium">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+      <div class="font-inter p-2 rounded-lg shadow-lg bg-white text-gray-800 ${isDark ? 'dark-popup' : ''}">
+        <h3 class="font-semibold text-primary">监测点数据</h3>
+        <div class="mt-2 space-y-1">
+          <div class="flex justify-between">
+            <span class="text-gray-600 dark:text-gray-200">经纬度:</span>
+           <span class="font-medium">
+      ${typeof lng === 'number' && !isNaN(lng) ? lng.toFixed(7) : '-'},
+      ${typeof lat === 'number' && !isNaN(lat) ? lat.toFixed(7) : '-'}
+</span>
+
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600 dark:text-gray-200">日期:</span>
+            <span class="font-medium">${date}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600 dark:text-gray-200">污染物:</span>
+            <span class="font-medium">${gasTypeName}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600 dark:text-gray-200">浓度:</span>
+            <span class="font-medium ${getConcentrationClass(concentration)}">${concentration.toFixed(1)} μg/m³</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600 dark:text-gray-200">聚合点数量:</span>
+            <span class="font-medium">${clusterCount ? clusterCount : 1}</span>
+          </div>
+          <div class="flex justify-between mt-2">
+            <span class="text-xs text-gray-500">状态:</span>
+            <span class="text-xs font-medium ${isSelected ? 'text-primary' : 'text-gray-500'}">${isSelected ? '已选中' : '未选中'}</span>
+          </div>
+        </div>
       </div>
-      <div class="flex justify-between">
-        <span class="text-gray-600">日期:</span>
-        <span class="font-medium">${date}</span>
-      </div>
-      <div class="flex justify-between">
-        <span class="text-gray-600">污染物:</span>
-        <span class="font-medium">${gasTypeName}</span>
-      </div>
-      <div class="flex justify-between">
-        <span class="text-gray-600">浓度:</span>
-        <span class="font-medium ${getConcentrationClass(concentration)}">${concentration.toFixed(1)} μg/m³</span>
-      </div>
-      <div class="flex justify-between">
-        <span class="text-gray-600">聚合点数量:</span>
-        <span class="font-medium">${clusterCount ? clusterCount : 1}</span>
-      </div>
-      <div class="flex justify-between mt-2">
-        <span class="text-xs text-gray-500">状态:</span>
-        <span class="text-xs font-medium ${isSelected ? 'text-primary' : 'text-gray-500'}">${isSelected ? '已选中' : '未选中'}</span>
-      </div>
-    </div>
-  </div>
 `;
 
             // 创建并显示弹窗
@@ -1298,6 +1643,15 @@
                 .setLngLat([lng, lat])
                 .setHTML(popupContent)
                 .addTo(appState.map);
+
+            // 适配暗色模式：为弹窗内容添加暗色样式
+            if (isDark) {
+                const popupEl = document.querySelector('.mapboxgl-popup-content');
+                if (popupEl) {
+                    popupEl.style.background = '#1e293b';
+                    popupEl.style.color = '#f1f5f9';
+                }
+            }
         }
         // 获取浓度对应的CSS类
         function getConcentrationClass(concentration) {
@@ -1332,10 +1686,10 @@
         function updateDataTable(data) {
             if (data.length === 0) {
                 elements.dataTableBody.innerHTML = `
-              <tr class="text-center">
-                <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
-              </tr>
-            `;
+                  <tr class="text-center">
+                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
+                  </tr>
+                `;
                 return;
             }
 
@@ -1358,29 +1712,28 @@
             // 填充表格
             sortedData.forEach(item => {
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 transition-colors';
+                row.className = 'hover:bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 transition-colors';
 
                 // 检查是否选中
                 const isSelected = appState.selectedPoints.some(p => p.id === item.id);
 
                 row.innerHTML = `
-      <td class="px-3 py-2 whitespace-nowrap">
-        <div class="flex items-center">
-          <div class="w-3 h-3 rounded-full ${getConcentrationColor(item.concentration)} mr-2"></div>
-          ${item.id.startsWith('sample') ? '示例点' : item.id.startsWith('import') ? '导入点' : item.id.startsWith('manual') ? '手动点' : '监测点'}
-        </div>
-      </td>
-      <td class="px-3 py-2 whitespace-nowrap">${item.date}</td>
-      <td class="px-3 py-2 whitespace-nowrap">${gasTypeNames[item.type] || item.type}</td>
-      <td class="px-3 py-2 whitespace-nowrap font-medium ${getConcentrationClass(item.concentration)}">
-        ${item.concentration.toFixed(1)} μg/m³
-        ${isSelected ? '<span class="ml-1 text-xs text-primary">(选中)</span>' : ''}
-      </td>
-    `;
+          <td class="px-3 py-2 whitespace-nowrap">
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full ${getConcentrationColor(item.concentration)} mr-2"></div>
+              ${item.id.startsWith('sample') ? '示例点' : item.id.startsWith('import') ? '导入点' : item.id.startsWith('manual') ? '手动点' : '监测点'}
+            </div>
+          </td>
+          <td class="px-3 py-2 whitespace-nowrap">${item.date}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${gasTypeNames[item.type] || item.type}</td>
+          <td class="px-3 py-2 whitespace-nowrap font-medium ${getConcentrationClass(item.concentration)}">
+            ${item.concentration.toFixed(1)} μg/m³
+            ${isSelected ? '<span class="ml-1 text-xs text-primary">(选中)</span>' : ''}
+          </td>
+        `;
 
                 // 新增：点击表格行选中并弹窗
                 row.addEventListener('click', () => {
-                    // 只选中当前行对应的数据点
                     appState.selectedPoints = [{
                         id: item.id,
                         lat: item.lat,
@@ -1389,25 +1742,9 @@
                         type: item.type,
                         concentration: item.concentration
                     }];
-                    // 刷新地图和表格
-                    applyFilters();
-
-                    // 弹窗显示
-                    showPopup({
-                        properties: {
-                            ...item,
-                            isSelected: true
-                        },
-                        geometry: { coordinates: [item.lng, item.lat] }
-                    });
-
-                    // 地图飞到该点
-                    appState.map.flyTo({
-                        center: [item.lng, item.lat],
-                        zoom: Math.max(appState.map.getZoom(), 14),
-                        speed: 1.2
-                    });
+                    applyFilters(); // 只调用applyFilters，弹窗逻辑移到applyFilters里
                 });
+
 
                 elements.dataTableBody.appendChild(row);
             });
@@ -1425,30 +1762,53 @@
         function updateChart(data) {
             if (!appState.concentrationChart) return;
 
+            // 获取统计起止日期
+            const statStartDate = document.getElementById('statStartDate').value;
+            const statEndDate = document.getElementById('statEndDate').value;
+
             // 按日期分组计算平均值
+            // 生成完整日期列表
+            function getDateRange(start, end) {
+                const result = [];
+                let dt = new Date(start);
+                const endDt = new Date(end);
+                while (dt <= endDt) {
+                    result.push(dt.toISOString().slice(0, 10));
+                    dt.setDate(dt.getDate() + 1);
+                }
+                return result;
+            }
+
+            const allDates = getDateRange(statStartDate, statEndDate);
+
+            // 按日期分组
             const dateGroups = {};
             appState.data.forEach(item => {
                 if (appState.selectedGasTypes && appState.selectedGasTypes.includes(item.type)) {
-                    if (!dateGroups[item.date]) {
-                        dateGroups[item.date] = [];
+                    if (item.date >= statStartDate && item.date <= statEndDate) {
+                        if (!dateGroups[item.date]) {
+                            dateGroups[item.date] = [];
+                        }
+                        dateGroups[item.date].push(item.concentration);
                     }
-                    dateGroups[item.date].push(item.concentration);
                 }
             });
 
-            // 计算每天的平均值
-            const dates = Object.keys(dateGroups).sort();
-            const avgConcentrations = dates.map(date => {
+            // 计算每天的平均值，补全无数据天
+            const avgConcentrations = allDates.map(date => {
                 const values = dateGroups[date];
-                return values.reduce((acc, val) => acc + val, 0) / values.length;
+                if (values && values.length > 0) {
+                    return values.reduce((acc, val) => acc + val, 0) / values.length;
+                } else {
+                    return null; // 无数据天断线
+                }
             });
 
             // 更新图表数据
-            appState.concentrationChart.data.labels = dates;
+            appState.concentrationChart.data.labels = allDates;
             appState.concentrationChart.data.datasets[0].data = avgConcentrations;
             appState.concentrationChart.update();
         }
-
         // 删除选中数据
         function deleteSelectedData() {
             if (appState.selectedPoints.length === 0) {
@@ -1511,6 +1871,48 @@
                         speed: 0.8
                     });
 
+                    // 移除旧的“我的位置”marker
+                    if (appState.myLocationMarker) {
+                        appState.myLocationMarker.remove();
+                    }
+
+                    // 创建新的marker
+                    const el = document.createElement('div');
+                    el.className = 'my-location-marker';
+                    el.style.width = '28px';
+                    el.style.height = '28px';
+                    el.style.background = 'rgba(22,93,255,0.15)';
+                    el.style.border = '2px solid #165DFF';
+                    el.style.borderRadius = '50%';
+                    el.style.boxShadow = '0 0 8px #165DFF55';
+                    el.style.display = 'flex';
+                    el.style.alignItems = 'center';
+                    el.style.justifyContent = 'center';
+
+                    // 内部小圆点
+                    const inner = document.createElement('div');
+                    inner.style.width = '10px';
+                    inner.style.height = '10px';
+                    inner.style.background = '#165DFF';
+                    inner.style.borderRadius = '50%';
+                    el.appendChild(inner);
+
+                    // 创建marker并添加到地图
+                    appState.myLocationMarker = new mapboxgl.Marker(el)
+                        .setLngLat([longitude, latitude])
+                        .setPopup(
+                            new mapboxgl.Popup({ offset: 18 })
+                                .setHTML(
+                                    `<div style="font-size:14px;">
+                    <strong>我的位置</strong><br>
+                    经度: ${longitude.toFixed(7)}<br>
+                    纬度: ${latitude.toFixed(7)}
+                </div>`
+                                )
+                        )
+
+                        .addTo(appState.map);
+
                     showNotification('成功', '已定位到您的当前位置', 'success');
                     showLoading(false);
                 },
@@ -1521,6 +1923,7 @@
                 }
             );
         }
+
 
         // 重置地图视图
         function resetMapView() {
@@ -1554,11 +1957,17 @@
             event.preventDefault();
 
             // 获取表单数据
-            const lat = parseFloat(document.getElementById('manualLat').value);
-            const lng = parseFloat(document.getElementById('manualLng').value);
+            let lat = parseFloat(document.getElementById('manualLat').value);
+            let lng = parseFloat(document.getElementById('manualLng').value);
             const date = document.getElementById('manualDate').value;
             const type = document.getElementById('manualGasType').value;
             const concentration = parseFloat(document.getElementById('manualConcentration').value);
+
+            // 在手动数据提交前，自动将WGS-84转为GCJ-02
+            if (!outOfChina(lng, lat)) {
+                [lng, lat] = wgs84ToGcj02(lng, lat);
+            }
+
 
             // 验证数据
             if (isNaN(lat) || isNaN(lng) || !date || !type || isNaN(concentration)) {
@@ -1575,7 +1984,6 @@
                 type,
                 concentration
             };
-
             // 添加到数据集中
             appState.data.push(newDataPoint);
             // 自动切换筛选条件到新数据
@@ -1600,7 +2008,6 @@
 
             showNotification('成功', '数据点已添加', 'success');
         }
-
         // 刷新数据
         function refreshData() {
             applyFilters();
@@ -1619,28 +2026,48 @@
 
         // 切换主题
         function toggleTheme() {
-            appState.isDarkMode = !appState.isDarkMode;
-
-            if (appState.isDarkMode) {
-                document.body.classList.add('bg-gray-900', 'text-white');
-                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
+            // 判断当前是否为暗色模式
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme-mode', 'light');
+                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-moon text-gray-600 dark:text-gray-200"></i>';
+                if (appState.map) {
+                    appState.map.setStyle('mapbox://styles/mapbox/light-v10');
+                    appState.map.once('style.load', function () {
+                        try { if (appState.navControl) appState.map.removeControl(appState.navControl); } catch (e) { }
+                        try { if (appState.scaleControl) appState.map.removeControl(appState.scaleControl); } catch (e) { }
+                        appState.navControl = new mapboxgl.NavigationControl();
+                        appState.scaleControl = new mapboxgl.ScaleControl({
+                            maxWidth: 80,
+                            unit: 'metric'
+                        });
+                        appState.map.addControl(appState.navControl, 'top-right');
+                        appState.map.addControl(appState.scaleControl);
+                        applyFilters();
+                    });
+                }
             } else {
-                document.body.classList.remove('bg-gray-900', 'text-white');
-                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-moon text-gray-600"></i>';
-            }
-
-            // 切换地图样式，并在 style 加载后自动刷新图层
-            if (appState.map) {
-                appState.map.setStyle(appState.isDarkMode
-                    ? 'mapbox://styles/mapbox/dark-v10'
-                    : 'mapbox://styles/mapbox/light-v10'
-                );
-                appState.map.once('style.load', function () {
-                    applyFilters(); // 重新加载自定义图层和数据
-                });
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme-mode', 'dark');
+                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
+                if (appState.map) {
+                    appState.map.setStyle('mapbox://styles/mapbox/dark-v10');
+                    appState.map.once('style.load', function () {
+                        try { if (appState.navControl) appState.map.removeControl(appState.navControl); } catch (e) { }
+                        try { if (appState.scaleControl) appState.map.removeControl(appState.scaleControl); } catch (e) { }
+                        appState.navControl = new mapboxgl.NavigationControl();
+                        appState.scaleControl = new mapboxgl.ScaleControl({
+                            maxWidth: 80,
+                            unit: 'metric'
+                        });
+                        appState.map.addControl(appState.navControl, 'top-right');
+                        appState.map.addControl(appState.scaleControl);
+                        applyFilters();
+                    });
+                }
             }
         }
-
         // 显示通知
         function showNotification(title, message, type = 'info') {
             // 设置通知内容
@@ -1664,19 +2091,15 @@
 
             elements.notificationIcon.className = `fa ${iconClass}`;
             elements.notification.className = elements.notification.className.replace(/bg-\w+-\d+/, bgColor);
-
             // 显示通知
             elements.notification.classList.remove('translate-y-20', 'opacity-0');
-
             // 3秒后自动隐藏
             setTimeout(hideNotification, 3000);
         }
-
         // 隐藏通知
         function hideNotification() {
             elements.notification.classList.add('translate-y-20', 'opacity-0');
         }
-
         // 显示/隐藏加载中
         function showLoading(show) {
             if (show) {
@@ -1685,7 +2108,61 @@
                 elements.loadingOverlay.classList.add('hidden');
             }
         }
+        // 主题切换：自动跟随系统，手动切换优先
+        (function () {
+            const themeKey = 'theme-mode';
+            // 应用主题
+            function applyTheme(mode) {
+                if (mode === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+            // 获取当前主题（localStorage > 系统）
+            function getCurrentTheme() {
+                const saved = localStorage.getItem(themeKey);
+                if (saved === 'dark' || saved === 'light') return saved;
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            // 初始化主题
+            function initTheme() {
+                applyTheme(getCurrentTheme());
+            }
 
+            // 监听系统主题变化
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (!localStorage.getItem(themeKey)) {
+                    applyTheme(e.matches ? 'dark' : 'light');
+                }
+            });
+
+            // 页面加载时应用主题
+            initTheme();
+
+            // 绑定手动切换按钮
+            document.addEventListener('DOMContentLoaded', function () {
+                const legendBtn = document.getElementById('toggleLegendBtn');
+                const legendContent = document.getElementById('legendContent');
+                const legendIcon = document.getElementById('toggleLegendIcon');
+                let legendCollapsed = false;
+
+                if (legendBtn && legendContent && legendIcon) {
+                    legendBtn.addEventListener('click', function () {
+                        legendCollapsed = !legendCollapsed;
+                        if (legendCollapsed) {
+                            legendContent.style.display = 'none';
+                            legendIcon.classList.remove('fa-chevron-down');
+                            legendIcon.classList.add('fa-chevron-up');
+                        } else {
+                            legendContent.style.display = '';
+                            legendIcon.classList.remove('fa-chevron-up');
+                            legendIcon.classList.add('fa-chevron-down');
+                        }
+                    });
+                }
+            });
+        })();
         // 页面加载完成后初始化应用
         document.addEventListener('DOMContentLoaded', initApp);
     </script>

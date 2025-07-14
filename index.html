@@ -561,7 +561,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
         }
         //调用高德地图，失败则调用mapbox
         async function geocodePlaceNameAmap(placeName) {
-            const key = 'fa9f21896a48760c5500f10c74b755fe'; // 替换为你的高德Key
+            const key = ''; // 替换为你的高德Key
             const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(placeName)}&output=JSON&key=${key}`;
             try {
                 const resp = await fetch(url);
@@ -587,7 +587,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
         }
         // 批量高德地理编码（每次最多10个地址）
         async function batchGeocodeAmap(addressList) {
-            const key = 'fa9f21896a48760c5500f10c74b755fe'; // 替换为你的高德Key
+            const key = ''; // 替换为你的高德Key
             // 高德API每次最多支持10个地址
             const results = {};
             for (let i = 0; i < addressList.length; i += 10) {

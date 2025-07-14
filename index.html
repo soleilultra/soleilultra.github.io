@@ -33,7 +33,6 @@
             }
         }
     </script>
-
     <style type="text/tailwindcss">
         /* 适配暗色模式的弹窗（包括所有子元素） */
         html.dark .mapboxgl-popup-content {
@@ -47,15 +46,8 @@
                 color: #f1f5f9 !important;
                 background: transparent !important;
             }
-
         html.dark .mapboxgl-popup-tip {
             border-top-color: #1e293b !important;
-        }
-
-        /* 适配暗色模式的弹窗 */
-        html.dark .mapboxgl-popup-content {
-            background: #1e293b !important;
-            color: #f1f5f9 !important;
         }
         @layer utilities {
             .content-auto {
@@ -66,29 +58,23 @@
                 -ms-overflow-style: none;
                 scrollbar-width: none;
             }
-
                 .scrollbar-hide::-webkit-scrollbar {
                     display: none;
                 }
-
             .text-shadow {
                 text-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
-
             .card-hover {
                 transition: all 0.3s ease;
             }
-
                 .card-hover:hover {
                     transform: translateY(-5px);
                     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
                 }
-
             .btn-effect {
                 position: relative;
                 overflow: hidden;
             }
-
                 .btn-effect:after {
                     content: "";
                     position: absolute;
@@ -102,22 +88,31 @@
                     transform: scale(1, 1) translate(-50%);
                     transform-origin: 50% 50%;
                 }
-
                 .btn-effect:active:after {
                     animation: ripple 1s ease-out;
                 }
-
             @keyframes ripple {
                 0% {
                     transform: scale(0, 0);
                     opacity: 0.5;
                 }
-
                 100% {
                     transform: scale(20, 20);
                     opacity: 0;
                 }
             }
+        }
+        #statsDrawer {
+            padding-top: 80px;
+        }
+        #statsDrawer .close-btn-fix {
+            z-index: 1100 !important;
+            position: absolute !important;
+        }
+        #statsDrawer h2 {
+            color: #165DFF !important;
+            opacity: 1 !important;
+            display: flex !important;
         }
     </style>
 </head>
@@ -141,7 +136,7 @@
     </header>
 
     <!-- 主要内容区 -->
-    <main class="flex-1 flex flex-col md:flex-row w-full max-w-full p-2 md:p-6 gap-4 md:gap-6">
+    <main class="flex-1 flex flex-col md:flex-row w-full max-w-full p-2 md:p-6 gap-4 md:gap-6 margin-top">
         <!-- 左侧控制面板 -->
         <aside class="w-full md:w-80 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg p-3 md:p-5 transition-all duration-300 flex flex-col">
             <h2 class="text-xl font-bold mb-4 text-dark dark:text-gray-100 border-b pb-2 flex items-center">
@@ -257,7 +252,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
             </div>
 
             <div class="mt-auto text-center text-xs text-gray-500">
-                <p>污染气体浓度地图可视化系统 v1.0</p>
+                <p>污染气体浓度地图可视化系统 v2.0</p>
             </div>
         </aside>
 
@@ -344,125 +339,152 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
             </div>
 
             <!-- 数据统计和输入区 -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 max-h-[320px] overflow-y-auto">
-                <!-- 数据统计卡片 ... -->
-                <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg overflow-hidden flex-1 flex flex-col">
-                    <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
-                        <i class="fa-solid fa-chart-line text-primary mr-2"></i>数据统计
-                    </h2>
-                    <div class="px-4 pb-4">
-                        <div class="flex flex-wrap items-center gap-2 mb-2">
-                            <label for="statStartDate" class="text-sm text-gray-600 dark:text-gray-200">起始日期</label>
-                            <input type="date" id="statStartDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
-                            <label for="statEndDate" class="text-sm text-gray-600 dark:text-gray-200">结束日期</label>
-                            <input type="date" id="statEndDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
-                            <button id="statDateApply" class="px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 text-sm">应用</button>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">监测点数量</span>
-                                <span id="stationCount" class="text-lg font-semibold text-primary">0</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">平均浓度</span>
-                                <span id="avgConcentration" class="text-lg font-semibold text-primary">0</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最高浓度</span>
-                                <span id="maxConcentration" class="text-lg font-semibold text-danger">0</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最低浓度</span>
-                                <span id="minConcentration" class="text-lg font-semibold text-secondary">0</span>
-                            </div>
-                        </div>
-                        <!-- 图表容器 -->
-                        <div class="mt-4">
-                            <canvas id="concentrationChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <!-- 实时数据卡片 -->
-                <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg card-hover flex flex-col">
-                    <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
-                        <i class="fa-solid fa-table text-primary mr-2"></i>实时数据
-                    </h2>
-                    <div class="px-4 pb-4 flex-1 flex flex-col">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 dark:bg-gray-700">
-                                    <tr>
-                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">监测点</th>
-                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日期</th>
-                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">类型</th>
-                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">浓度</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dataTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 max-h-64 overflow-y-auto scrollbar-hide">
-                                    <!-- 数据将通过JavaScript动态填充 -->
-                                    <tr class="text-center">
-                                        <td colspan="4" class="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">暂无数据</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-4 text-center">
-                            <button id="refreshData" class="btn-effect px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm">
-                                <i class="fa-solid fa-refresh mr-1"></i>刷新数据
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <!-- 手动数据输入卡片 -->
-                <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg p-5 card-hover">
-                    <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center">
-                        <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
-                    </h2>
-                    <form id="manualDataForm" class="space-y-4">
-                        <div>
-                            <label for="manualLat" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">纬度</label>
-                            <input type="number" id="manualLat" step="any" placeholder="例如: 39.9042" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
-                        </div>
-                        <div>
-                            <label for="manualLng" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">经度</label>
-                            <input type="number" id="manualLng" step="any" placeholder="例如: 116.4074" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
-                        </div>
-                        <div>
-                            <label for="manualDate" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">日期</label>
-                            <input type="date" id="manualDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100" required>
-                        </div>
-                        <div class="relative">
-                            <label for="manualGasType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">污染气体类型</label>
-                            <select id="manualGasType"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
-                                <option value="SO2">二氧化硫 (SO₂)</option>
-                                <option value="NO2">二氧化氮 (NO₂)</option>
-                                <option value="PM2.5">细颗粒物 (PM2.5)</option>
-                                <option value="PM10">可吸入颗粒物 (PM10)</option>
-                                <option value="CO">一氧化碳 (CO)</option>
-                                <option value="O3">臭氧 (O₃)</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-300">
-                                <i class="fa-solid fa-chevron-down text-xs"></i>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="manualConcentration" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">浓度值</label>
-                            <input type="number" id="manualConcentration" step="any" placeholder="例如: 56.7"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
-                        </div>
-                        <button type="submit" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
-                            <i class="fa-solid fa-plus mr-2"></i>添加数据
-                        </button>
-                    </form>
-                </div>
-            </div>
         </div>
     </main>
+    <!-- 统计区抽屉面板，初始隐藏 -->
+    <div id="statsDrawer" class="fixed right-0 bottom-0 top-0 w-full md:w-auto bg-white dark:bg-gray-800 shadow-2xl z-60">
+        <button onclick="document.getElementById('toggleStatsDrawer').click()" class="md:hidden absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:text-gray-200 close-btn-fix">
+            <i class="fa-solid fa-times text-2xl"></i>
+        </button>
+        <div class="p-4 flex flex-col md:flex-row gap-4 md:gap-6">
+            <!-- 数据统计卡片 ... -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-1">
+
+                <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
+                    <i class="fa-solid fa-chart-line text-primary mr-2"></i>数据统计
+                </h2>
+                <div class="px-4 pb-4">
+                    <div class="flex flex-col gap-2 mb-2">
+                        <div class="flex flex-col">
+                            <label for="statStartDate" class="text-sm text-gray-600 dark:text-gray-200">起始日期</label>
+                            <input type="date" id="statStartDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="statEndDate" class="text-sm text-gray-600 dark:text-gray-200">结束日期</label>
+                            <input type="date" id="statEndDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
+                        </div>
+                        <button id="statDateApply" class="px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 text-sm mt-2">应用</button>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">监测点数量</span>
+                            <span id="stationCount" class="text-lg font-semibold text-primary">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">平均浓度</span>
+                            <span id="avgConcentration" class="text-lg font-semibold text-primary">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最高浓度</span>
+                            <span id="maxConcentration" class="text-lg font-semibold text-danger">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最低浓度</span>
+                            <span id="minConcentration" class="text-lg font-semibold text-secondary">0</span>
+                        </div>
+                    </div>
+                    <div id="predictionPanel" class="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <h3 class="font-semibold text-base mb-2 flex items-center">
+                            <i class="fa-solid fa-chart-line text-primary mr-2"></i>未来3天浓度预测
+                        </h3>
+                        <div id="predictionResult" class="text-sm text-gray-700 dark:text-gray-200">请先筛选数据</div>
+                    </div>
+                    <!-- 图表容器 -->
+                    <div class="mt-4">
+                        <canvas id="concentrationChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                <!-- 放大图表模态框 -->
+                <div id="chartModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-3xl w-full relative">
+                        <button id="closeChartModal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:text-gray-200 text-2xl">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                        <canvas id="bigConcentrationChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- 实时数据卡片 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg card-hover flex flex-col md:flex-1">
+                <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
+                    <i class="fa-solid fa-table text-primary mr-2"></i>实时数据
+                </h2>
+                <div class="px-4 pb-4 flex-1 flex flex-col">
+                    <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 dark:bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">监测点</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日期</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">类型</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">浓度</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 max-h-64 overflow-y-auto scrollbar-hide">
+                                <!-- 数据将通过JavaScript动态填充 -->
+                                <tr class="text-center">
+                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">暂无数据</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <button id="refreshData" class="btn-effect px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm">
+                            <i class="fa-solid fa-refresh mr-1"></i>刷新数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- 手动数据输入卡片 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 card-hover md:flex-1">
+                <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center">
+                    <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
+                </h2>
+                <form id="manualDataForm" class="space-y-4">
+                    <div>
+                        <label for="manualLat" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">纬度</label>
+                        <input type="number" id="manualLat" step="any" placeholder="例如: 39.9042" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    </div>
+                    <div>
+                        <label for="manualLng" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">经度</label>
+                        <input type="number" id="manualLng" step="any" placeholder="例如: 116.4074" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    </div>
+                    <div>
+                        <label for="manualDate" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">日期</label>
+                        <input type="date" id="manualDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100" required>
+                    </div>
+                    <div class="relative">
+                        <label for="manualGasType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">污染气体类型</label>
+                        <select id="manualGasType"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+                            <option value="SO2">二氧化硫 (SO₂)</option>
+                            <option value="NO2">二氧化氮 (NO₂)</option>
+                            <option value="PM2.5">细颗粒物 (PM2.5)</option>
+                            <option value="PM10">可吸入颗粒物 (PM10)</option>
+                            <option value="CO">一氧化碳 (CO)</option>
+                            <option value="O3">臭氧 (O₃)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-300">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="manualConcentration" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">浓度值</label>
+                        <input type="number" id="manualConcentration" step="any" placeholder="例如: 56.7"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
+                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    </div>
+                    <button type="submit" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-plus mr-2"></i>添加数据
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
     <!-- 帮助模态框 -->
     <div id="helpModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
         <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -527,12 +549,20 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
             <i class="fa-solid fa-times"></i>
         </button>
     </div>
+    <button id="toggleStatsDrawer" class="fixed bottom-6 right-6 z-60 bg-primary text-white rounded-full shadow-lg w-14 h-14 flex items-center justify-center text-2xl hover:bg-primary/90 transition-colors">
+        <i class="fa-solid fa-chart-line"></i>
+    </button>
     <script>
+        function isValidLngLat(lng, lat) {
+            return typeof lng === 'number' && typeof lat === 'number' &&
+                !isNaN(lng) && !isNaN(lat) &&
+                lng >= -180 && lng <= 180 &&
+                lat >= -90 && lat <= 90;
+        }
         //调用高德地图，失败则调用mapbox
         async function geocodePlaceNameAmap(placeName) {
-            const key = '9328be6acac719770'; // 替换为你的高德Key
+            const key = 'fa9f21896a48760c5500f10c74b755fe'; // 替换为你的高德Key
             const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(placeName)}&output=JSON&key=${key}`;
-
             try {
                 const resp = await fetch(url);
                 const data = await resp.json();
@@ -557,7 +587,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
         }
         // 批量高德地理编码（每次最多10个地址）
         async function batchGeocodeAmap(addressList) {
-            const key = '9328be6acac7197730'; // 替换为你的高德Key
+            const key = 'fa9f21896a48760c5500f10c74b755fe'; // 替换为你的高德Key
             // 高德API每次最多支持10个地址
             const results = {};
             for (let i = 0; i < addressList.length; i += 10) {
@@ -755,6 +785,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
             // 获取所有数据的日期，去重并排序
             const allDates = Array.from(new Set(appState.data.map(item => item.date))).sort();
             const dateFilter = elements.dateFilter;
+
             if (!dateFilter) return;
 
             // 清空现有选项
@@ -815,8 +846,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
             initMap();
 
             // 初始化图表
-            initChart();
-
+            initChart();        
             // 绑定事件处理程序
             bindEvents();
 
@@ -1017,15 +1047,18 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
                     item['经度坐标'] || item['X坐标'] || item['x']
                 );
                 if (isNaN(lat) || isNaN(lng)) {
-                    let addressParts = [
-                        item['省'] || item['province'] || '',
-                        item['市'] || item['city'] || '',
-                        item['区'] || item['district'] || item['县'] || item['county'] || ''
-                    ];
-                    // 只取第一个有值的地点/地址/站点名称
-                    let place = placeFields.map(f => item[f]).find(Boolean) || '';
-                    if (place) addressParts.push(place);
-
+                    let addressParts = [];
+                    if (item['省'] || item['province']) addressParts.push(item['省'] || item['province']);
+                    if (item['市'] || item['city']) addressParts.push(item['市'] || item['city']);
+                    if (item['区'] || item['district'] || item['县'] || item['county']) {
+                        addressParts.push(item['区'] || item['district'] || item['县'] || item['county']);
+                    }
+                    for (const field of placeFields) {
+                        if (item[field]) {
+                            addressParts.push(item[field]);
+                            break;
+                        }
+                    }
                     const fullAddress = normalizeAddress(addressParts.filter(Boolean).join(''));
                     if (fullAddress) {
                         if (!addressMap[fullAddress]) {
@@ -1068,10 +1101,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
                         }
                     }
                     const fullAddress = normalizeAddress(addressParts.filter(Boolean).join(''));
-                    console.log('地理编码请求地址:', fullAddress);
-                    console.log('地理编码返回:', geoResults[fullAddress]);
-                    if (fullAddress && geoResults[fullAddress] && !outOfChina(geoResults[fullAddress].lng, geoResults[fullAddress].lat))
-                    {
+                    if (fullAddress && geoResults[fullAddress] && !outOfChina(geoResults[fullAddress].lng, geoResults[fullAddress].lat)) {
                         [lng, lat] = gcj02ToWgs84(geoResults[fullAddress].lng, geoResults[fullAddress].lat);
                         usedBatchGeo = true;
                     } else if (fullAddress) {
@@ -1600,39 +1630,39 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
 
             // 创建弹窗内容，适配暗色模式
             const popupContent = `
-      <div class="font-inter p-2 rounded-lg shadow-lg bg-white text-gray-800 ${isDark ? 'dark-popup' : ''}">
-        <h3 class="font-semibold text-primary">监测点数据</h3>
-        <div class="mt-2 space-y-1">
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-200">经纬度:</span>
-           <span class="font-medium">
-      ${typeof lng === 'number' && !isNaN(lng) ? lng.toFixed(7) : '-'},
-      ${typeof lat === 'number' && !isNaN(lat) ? lat.toFixed(7) : '-'}
+                      <div class="font-inter p-2 rounded-lg shadow-lg bg-white text-gray-800 ${isDark ? 'dark-popup' : ''}">
+                        <h3 class="font-semibold text-primary">监测点数据</h3>
+                        <div class="mt-2 space-y-1">
+                          <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-200">经纬度:</span>
+                           <span class="font-medium">
+                      ${typeof lng === 'number' && !isNaN(lng) ? lng.toFixed(7) : '-'},
+                      ${typeof lat === 'number' && !isNaN(lat) ? lat.toFixed(7) : '-'}
 </span>
 
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-200">日期:</span>
-            <span class="font-medium">${date}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-200">污染物:</span>
-            <span class="font-medium">${gasTypeName}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-200">浓度:</span>
-            <span class="font-medium ${getConcentrationClass(concentration)}">${concentration.toFixed(1)} μg/m³</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-200">聚合点数量:</span>
-            <span class="font-medium">${clusterCount ? clusterCount : 1}</span>
-          </div>
-          <div class="flex justify-between mt-2">
-            <span class="text-xs text-gray-500">状态:</span>
-            <span class="text-xs font-medium ${isSelected ? 'text-primary' : 'text-gray-500'}">${isSelected ? '已选中' : '未选中'}</span>
-          </div>
-        </div>
-      </div>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-200">日期:</span>
+                            <span class="font-medium">${date}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-200">污染物:</span>
+                            <span class="font-medium">${gasTypeName}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-200">浓度:</span>
+                            <span class="font-medium ${getConcentrationClass(concentration)}">${concentration.toFixed(1)} μg/m³</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-200">聚合点数量:</span>
+                            <span class="font-medium">${clusterCount ? clusterCount : 1}</span>
+                          </div>
+                          <div class="flex justify-between mt-2">
+                            <span class="text-xs text-gray-500">状态:</span>
+                            <span class="text-xs font-medium ${isSelected ? 'text-primary' : 'text-gray-500'}">${isSelected ? '已选中' : '未选中'}</span>
+                          </div>
+                        </div>
+                      </div>
 `;
 
             // 创建并显示弹窗
@@ -1662,7 +1692,16 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
 
         // 更新统计信息
         function updateStatistics(data) {
-            if (data.length === 0) {
+            let filtered = data;
+            // 如果有选中点，只统计该点的历史数据
+            if (appState.selectedPoints && appState.selectedPoints.length === 1) {
+                const selected = appState.selectedPoints[0];
+                filtered = appState.data.filter(item =>
+                    item.id === selected.id ||
+                    (item.lat === selected.lat && item.lng === selected.lng && item.type === selected.type)
+                );
+            }
+            if (!filtered || filtered.length === 0) {
                 elements.stationCount.textContent = '0';
                 elements.avgConcentration.textContent = '0';
                 elements.maxConcentration.textContent = '0';
@@ -1670,26 +1709,25 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
                 return;
             }
 
-            const concentrations = data.map(item => item.concentration);
+            const concentrations = filtered.map(item => item.concentration);
             const sum = concentrations.reduce((acc, val) => acc + val, 0);
-            const avg = sum / data.length;
+            const avg = sum / concentrations.length;
             const max = Math.max(...concentrations);
             const min = Math.min(...concentrations);
 
-            elements.stationCount.textContent = data.length;
+            elements.stationCount.textContent = filtered.length;
             elements.avgConcentration.textContent = avg.toFixed(1);
             elements.maxConcentration.textContent = max.toFixed(1);
             elements.minConcentration.textContent = min.toFixed(1);
         }
-
         // 更新数据表格
         function updateDataTable(data) {
             if (data.length === 0) {
                 elements.dataTableBody.innerHTML = `
-                  <tr class="text-center">
-                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
-                  </tr>
-                `;
+                                  <tr class="text-center">
+                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
+                                  </tr>
+                                `;
                 return;
             }
 
@@ -1718,19 +1756,19 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
                 const isSelected = appState.selectedPoints.some(p => p.id === item.id);
 
                 row.innerHTML = `
-          <td class="px-3 py-2 whitespace-nowrap">
-            <div class="flex items-center">
-              <div class="w-3 h-3 rounded-full ${getConcentrationColor(item.concentration)} mr-2"></div>
-              ${item.id.startsWith('sample') ? '示例点' : item.id.startsWith('import') ? '导入点' : item.id.startsWith('manual') ? '手动点' : '监测点'}
-            </div>
-          </td>
-          <td class="px-3 py-2 whitespace-nowrap">${item.date}</td>
-          <td class="px-3 py-2 whitespace-nowrap">${gasTypeNames[item.type] || item.type}</td>
-          <td class="px-3 py-2 whitespace-nowrap font-medium ${getConcentrationClass(item.concentration)}">
-            ${item.concentration.toFixed(1)} μg/m³
-            ${isSelected ? '<span class="ml-1 text-xs text-primary">(选中)</span>' : ''}
-          </td>
-        `;
+                          <td class="px-3 py-2 whitespace-nowrap">
+                            <div class="flex items-center">
+                              <div class="w-3 h-3 rounded-full ${getConcentrationColor(item.concentration)} mr-2"></div>
+                              ${item.id.startsWith('sample') ? '示例点' : item.id.startsWith('import') ? '导入点' : item.id.startsWith('manual') ? '手动点' : '监测点'}
+                            </div>
+                          </td>
+                          <td class="px-3 py-2 whitespace-nowrap">${item.date}</td>
+                          <td class="px-3 py-2 whitespace-nowrap">${gasTypeNames[item.type] || item.type}</td>
+                          <td class="px-3 py-2 whitespace-nowrap font-medium ${getConcentrationClass(item.concentration)}">
+                            ${item.concentration.toFixed(1)} μg/m³
+                            ${isSelected ? '<span class="ml-1 text-xs text-primary">(选中)</span>' : ''}
+                          </td>
+                        `;
 
                 // 新增：点击表格行选中并弹窗
                 row.addEventListener('click', () => {
@@ -1808,6 +1846,7 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
             appState.concentrationChart.data.labels = allDates;
             appState.concentrationChart.data.datasets[0].data = avgConcentrations;
             appState.concentrationChart.update();
+            predictNext3Days(data);
         }
         // 删除选中数据
         function deleteSelectedData() {
@@ -1904,10 +1943,10 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
                             new mapboxgl.Popup({ offset: 18 })
                                 .setHTML(
                                     `<div style="font-size:14px;">
-                    <strong>我的位置</strong><br>
-                    经度: ${longitude.toFixed(7)}<br>
-                    纬度: ${latitude.toFixed(7)}
-                </div>`
+                                    <strong>我的位置</strong><br>
+                                    经度: ${longitude.toFixed(7)}<br>
+                                    纬度: ${latitude.toFixed(7)}
+                                </div>`
                                 )
                         )
 
@@ -2142,29 +2181,197 @@ bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 
 
             // 绑定手动切换按钮
             document.addEventListener('DOMContentLoaded', function () {
-                const legendBtn = document.getElementById('toggleLegendBtn');
-                const legendContent = document.getElementById('legendContent');
-                const legendIcon = document.getElementById('toggleLegendIcon');
-                let legendCollapsed = false;
+                const drawer = document.getElementById('statsDrawer');
+                const btn = document.getElementById('toggleStatsDrawer');
+                const legend = document.getElementById('pollutantLegend');
+                let open = false;
 
-                if (legendBtn && legendContent && legendIcon) {
-                    legendBtn.addEventListener('click', function () {
-                        legendCollapsed = !legendCollapsed;
-                        if (legendCollapsed) {
-                            legendContent.style.display = 'none';
-                            legendIcon.classList.remove('fa-chevron-down');
-                            legendIcon.classList.add('fa-chevron-up');
-                        } else {
-                            legendContent.style.display = '';
-                            legendIcon.classList.remove('fa-chevron-up');
-                            legendIcon.classList.add('fa-chevron-down');
-                        }
-                    });
+                function updateDrawer() {
+                    if (open) {
+                        drawer.classList.remove('translate-x-full');
+                        // 展开时隐藏图例
+                        if (legend) legend.style.display = 'none';
+                    } else {
+                        drawer.classList.add('translate-x-full');
+                        // 收起时显示图例
+                        if (legend) legend.style.display = '';
+                    }
                 }
+                btn.addEventListener('click', function () {
+                    open = !open;
+                    updateDrawer();
+                });
+
+                window.addEventListener('resize', updateDrawer);
+                updateDrawer();
             });
         })();
         // 页面加载完成后初始化应用
         document.addEventListener('DOMContentLoaded', initApp);
+        function predictNext3Days(data) {
+            // 仅用选中点的历史数据
+            let filtered = data;
+            if (appState.selectedPoints && appState.selectedPoints.length === 1) {
+                const selected = appState.selectedPoints[0];
+                filtered = appState.data.filter(item =>
+                    item.id === selected.id ||
+                    (item.lat === selected.lat && item.lng === selected.lng && item.type === selected.type)
+                );
+            }
+            if (!filtered || filtered.length < 3) {
+                document.getElementById('predictionResult').textContent = '数据不足，无法预测';
+                return;
+            }
+            // 按日期分组取平均
+            const dateMap = {};
+            filtered.forEach(item => {
+                if (!dateMap[item.date]) dateMap[item.date] = [];
+                dateMap[item.date].push(item.concentration);
+            });
+            const dates = Object.keys(dateMap).sort();
+            let avgArr = dates.map(d => ({
+                date: d,
+                value: dateMap[d].reduce((a, b) => a + b, 0) / dateMap[d].length
+            }));
+
+            // 简单滑动平均去噪
+            avgArr = avgArr.map((v, i, arr) => {
+                if (i === 0 || i === arr.length - 1) return v;
+                return { date: v.date, value: (arr[i - 1].value + v.value + arr[i + 1].value) / 3 };
+            });
+
+            const x = avgArr.map((v, i) => i);
+            const y = avgArr.map(v => v.value);
+
+            // 自动选择1~3阶多项式，最小化残差
+            function polyFit(x, y, degree) {
+                // 构造范德蒙德矩阵
+                const X = x.map(xi => Array.from({ length: degree + 1 }, (_, k) => Math.pow(xi, k)));
+                // 最小二乘法 X^T X a = X^T y
+                const XT = X[0].map((_, col) => X.map(row => row[col]));
+                const XTX = XT.map(row => XT.map((_, col) => row.reduce((sum, v, i) => sum + v * X[i][col], 0)));
+                const XTy = XT.map(row => row.reduce((sum, v, i) => sum + v * y[i], 0));
+                // 高斯消元解线性方程组
+                function gauss(A, b) {
+                    const n = A.length;
+                    for (let i = 0; i < n; i++) {
+                        // 主元
+                        let maxRow = i;
+                        for (let k = i + 1; k < n; k++) if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+                        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+                        [b[i], b[maxRow]] = [b[maxRow], b[i]];
+                        for (let k = i + 1; k < n; k++) {
+                            const c = A[k][i] / A[i][i];
+                            for (let j = i; j < n; j++) A[k][j] -= c * A[i][j];
+                            b[k] -= c * b[i];
+                        }
+                    }
+                    const x = Array(n).fill(0);
+                    for (let i = n - 1; i >= 0; i--) {
+                        x[i] = b[i] / A[i][i];
+                        for (let k = i - 1; k >= 0; k--) b[k] -= A[k][i] * x[i];
+                    }
+                    return x;
+                }
+                const coef = gauss(XTX, XTy);
+                return coef;
+            }
+            function polyPredict(coef, xi) {
+                return coef.reduce((sum, c, k) => sum + c * Math.pow(xi, k), 0);
+            }
+            // 选择最优阶数
+            let bestDegree = 1, minErr = Infinity, bestCoef = [];
+            for (let d = 1; d <= Math.min(3, x.length - 1); d++) {
+                const coef = polyFit(x, y, d);
+                const yFit = x.map((xi, i) => polyPredict(coef, xi));
+                const err = y.reduce((sum, yi, i) => sum + Math.pow(yi - yFit[i], 2), 0);
+                if (err < minErr) {
+                    minErr = err;
+                    bestDegree = d;
+                    bestCoef = coef;
+                }
+            }
+            // 预测未来3天
+            const lastIdx = x.length - 1;
+            const pred = [1, 2, 3].map(i => polyPredict(bestCoef, lastIdx + i));
+            const lastDate = new Date(dates[dates.length - 1]);
+            const predDates = [1, 2, 3].map(i => {
+                const d = new Date(lastDate);
+                d.setDate(d.getDate() + i);
+                return d.toISOString().slice(0, 10);
+            });
+            document.getElementById('predictionResult').innerHTML =
+                predDates.map((d, i) =>
+                    `<div>${d}：<span class="font-bold text-primary">${pred[i].toFixed(1)}</span> μg/m³</div>`
+                ).join('');
+        }
+        // 统计区抽屉切换逻辑
+        document.addEventListener('DOMContentLoaded', function () {
+            const drawer = document.getElementById('statsDrawer');
+            const btn = document.getElementById('toggleStatsDrawer');
+            let open = false;
+
+            function updateDrawer() {
+                if (open) {
+                    drawer.classList.remove('translate-x-full');
+                } else {
+                    drawer.classList.add('translate-x-full');
+                }
+            }
+            btn.addEventListener('click', function () {
+                open = !open;
+                updateDrawer();
+            });
+
+            window.addEventListener('resize', updateDrawer);
+            updateDrawer();
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            const legendBtn = document.getElementById('toggleLegendBtn');
+            const legendContent = document.getElementById('legendContent');
+            const legendIcon = document.getElementById('toggleLegendIcon');
+            let legendCollapsed = false;
+
+            if (legendBtn && legendContent && legendIcon) {
+                legendBtn.addEventListener('click', function () {
+                    legendCollapsed = !legendCollapsed;
+                    if (legendCollapsed) {
+                        legendContent.style.display = 'none';
+                        legendIcon.classList.remove('fa-chevron-down');
+                        legendIcon.classList.add('fa-chevron-up');
+                    } else {
+                        legendContent.style.display = '';
+                        legendIcon.classList.remove('fa-chevron-up');
+                        legendIcon.classList.add('fa-chevron-down');
+                    }
+                });
+            }
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            const drawer = document.getElementById('statsDrawer');
+            const btn = document.getElementById('toggleStatsDrawer');
+            let open = false;
+            function updateDrawer() {
+                if (open) {
+                    drawer.classList.remove('translate-x-full');
+                    // 隐藏所有地图控件
+                    document.querySelectorAll('.mapboxgl-ctrl-top-right, .mapboxgl-ctrl-bottom-right, .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-top-left')
+                        .forEach(ctrl => ctrl.style.display = 'none');
+                } else {
+                    drawer.classList.add('translate-x-full');
+                    // 显示所有地图控件
+                    document.querySelectorAll('.mapboxgl-ctrl-top-right, .mapboxgl-ctrl-bottom-right, .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-top-left')
+                        .forEach(ctrl => ctrl.style.display = '');
+                }
+            }
+            btn.addEventListener('click', function () {
+                open = !open;
+                updateDrawer();
+            });
+            window.addEventListener('resize', updateDrawer);
+            updateDrawer();
+        });
     </script>
+    <!-- 悬浮按钮 -->
 </body>
 </html>

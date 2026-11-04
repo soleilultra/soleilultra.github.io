@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#020308">
-<title>星吞 · Stellar Devour (手机适配版)</title>
+<title>Stellar Devour · 星吞</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{
@@ -148,6 +148,25 @@
     display:block;margin-bottom:12px;
     text-shadow:0 0 30px rgba(120,190,255,.8);
   }
+  .poem{
+    font-size:clamp(13px, 3.4vw, 16px);
+    line-height:2.3;
+    letter-spacing:clamp(1.5px, 0.8vw, 4px);
+    color:#d8e8ff;
+    text-shadow:0 0 28px rgba(110,170,255,.65);
+    margin:6px 0 18px;
+    animation:poemIn 3s ease both;
+  }
+  @keyframes poemIn{
+    0%{opacity:0;filter:blur(8px);letter-spacing:14px;transform:translateY(6px)}
+    100%{opacity:1;filter:blur(0);letter-spacing:clamp(1.5px,0.8vw,4px);transform:none}
+  }
+  .poem-sub{
+    font-size:clamp(10px,2.6vw,12px);
+    color:rgba(160,195,255,.55);
+    letter-spacing:1.5px;
+    margin-bottom:clamp(18px,3.5vh,26px);
+  }
   #overlay .over-title{
     font-size:clamp(24px, 8vw, 34px);
     letter-spacing:clamp(4px, 2vw, 8px);
@@ -160,20 +179,17 @@
   .fadeIn{animation:fadeIn .8s ease both}
   @keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
-  /* 触摸设备：显示触摸版提示 */
   @media (hover:none) and (pointer:coarse){
     .hint-desktop{display:none}
     .hint-mobile{display:inline}
     #hud #massVal{opacity:.65}
   }
 
-  /* 窄屏（手机竖屏）微调 */
   @media (max-width:480px){
     #overlay .desc{line-height:1.8;font-size:11.5px}
     #overlay .desc br{display:none}
   }
 
-  /* 横屏矮屏：收紧垂直间距 */
   @media (max-height:520px){
     #overlay h1{font-size:clamp(30px, 8vh, 44px);letter-spacing:8px;margin-bottom:2px}
     #overlay .sub{margin-bottom:12px;font-size:10px;letter-spacing:3px}
@@ -181,6 +197,7 @@
     #overlay .over-title{font-size:24px;letter-spacing:4px;margin-bottom:14px}
     #result{font-size:12px;line-height:1.8;margin-bottom:14px}
     #result .big{font-size:24px;margin-bottom:8px}
+    .poem{font-size:12px;line-height:2;margin:4px 0 12px}
   }
 </style>
 </head>
@@ -188,13 +205,13 @@
 <canvas id="cv"></canvas>
 
 <div id="hud">
-  <div><span id="stageName">微陨石</span><span id="massVal">100</span></div>
-  <div id="cometCount">环绕彗星: 0</div>
+  <div><span id="stageName">Micrometeorite</span><span id="massVal">100</span></div>
+  <div id="cometCount">Orbiting Comets: 0</div>
   <div id="bar"><i id="fill"></i></div>
 </div>
 <div id="hint">
-  <span class="hint-desktop">精细纹理 · 真实天体标注 · 温和节奏<br>永续补充 · 流星穿透 · 潮汐瓦解</span>
-  <span class="hint-mobile">拖动屏幕控制方向 · 吞噬更小天体<br>躲避更大天体与流星</span>
+  <span class="hint-desktop">Procedural Textures · Real Celestial Labels · Calm Pace<br>Endless Spawn · Meteor Piercing · Tidal Disruption</span>
+  <span class="hint-mobile">Drag to steer · Devour smaller bodies<br>Evade larger ones &amp; meteors</span>
 </div>
 
 <div id="overlay">
@@ -202,17 +219,17 @@
     <h1>星 吞</h1>
     <div class="sub">STELLAR DEVOUR</div>
     <div class="desc">
-      精细纹理版 · <b>真实天体标注</b><br>
-      灶神星 · 冥王星 · 开普勒-22b · HD 189733b · 天鹅座X-1……<br>
-      每种天体都有独特的程序化表面纹理<br>
-      <b>行星 → 恒星 → 中子星 → 黑洞</b>
+      Procedural texture edition · <b>Real celestial labels</b><br>
+      Vesta · Pluto · Kepler-22b · HD 189733b · Cygnus X-1...<br>
+      Every body has its own unique procedural surface<br>
+      <b>Planet → Star → Neutron Star → Black Hole</b>
     </div>
-    <button class="btn" id="startBtn">开 始 演 化</button>
+    <button class="btn" id="startBtn">BEGIN EVOLUTION</button>
   </div>
   <div id="overView" style="display:none">
-    <div class="over-title">体 爆 魂 销</div>
+    <div class="over-title" id="overTitle">ANNIHILATION</div>
     <div id="result" class="fadeIn"></div>
-    <button class="btn" id="againBtn">再 来 一 次</button>
+    <button class="btn" id="againBtn">PLAY AGAIN</button>
   </div>
 </div>
 
@@ -249,104 +266,104 @@ function mulberry32(a){
 }
 
 const STAGES = [
-  { name:'微陨石',     min:0,        type:'rock'      },
-  { name:'小行星',     min:400,      type:'rock'      },
-  { name:'矮行星',     min:1600,     type:'rock'      },
-  { name:'岩石行星',   min:6000,     type:'planet'    },
-  { name:'超级地球',   min:20000,    type:'planet'    },
-  { name:'气态巨行星', min:70000,    type:'gas'       },
-  { name:'褐矮星',     min:200000,   type:'brown'     },
-  { name:'恒星',       min:600000,   type:'star'      },
-  { name:'蓝巨星',     min:1800000,  type:'star'      },
-  { name:'中子星',     min:5000000,  type:'neutron'   },
-  { name:'黑洞',       min:15000000, type:'blackhole' },
+  { name:'Micrometeorite', min:0,        type:'rock'      },
+  { name:'Asteroid',       min:400,      type:'rock'      },
+  { name:'Dwarf Planet',   min:1600,     type:'rock'      },
+  { name:'Rocky Planet',   min:6000,     type:'planet'    },
+  { name:'Super-Earth',    min:20000,    type:'planet'    },
+  { name:'Gas Giant',      min:70000,    type:'gas'       },
+  { name:'Brown Dwarf',    min:200000,   type:'brown'     },
+  { name:'Star',           min:600000,   type:'star'      },
+  { name:'Blue Giant',     min:1800000,  type:'star'      },
+  { name:'Neutron Star',   min:5000000,  type:'neutron'   },
+  { name:'Black Hole',     min:15000000, type:'blackhole' },
 ];
 
 const CATALOG = [
   [
-    { label:'碳质球粒陨石', color:'#3e3730', glow:'#241e18', tex:'carbon' },
-    { label:'铁镍陨石',     color:'#6a6258', glow:'#3a3530', tex:'metal'  },
-    { label:'石铁陨石',     color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
-    { label:'橄榄陨铁',     color:'#8a7a62', glow:'#5a5040', tex:'metal'  },
+    { label:'Carbonaceous Chondrite', color:'#3e3730', glow:'#241e18', tex:'carbon' },
+    { label:'Iron-Nickel Meteorite',  color:'#6a6258', glow:'#3a3530', tex:'metal'  },
+    { label:'Stony-Iron Meteorite',   color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
+    { label:'Pallasite',              color:'#8a7a62', glow:'#5a5040', tex:'metal'  },
   ],
   [
-    { label:'智神星',   color:'#5a544a', glow:'#2a2520', tex:'carbon' },
-    { label:'灶神星',   color:'#8a7a62', glow:'#5a5040', tex:'stony'  },
-    { label:'婚神星',   color:'#9a8e78', glow:'#6a6050', tex:'metal'  },
-    { label:'灵神星',   color:'#a89c88', glow:'#706858', tex:'metal'  },
-    { label:'爱神星',   color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
-    { label:'许癸厄亚', color:'#8a98a8', glow:'#4a5868', tex:'icy'    },
-    { label:'阿波菲斯', color:'#6a5a4a', glow:'#3a2a1a', tex:'carbon' },
+    { label:'Pallas',   color:'#5a544a', glow:'#2a2520', tex:'carbon' },
+    { label:'Vesta',    color:'#8a7a62', glow:'#5a5040', tex:'stony'  },
+    { label:'Juno',     color:'#9a8e78', glow:'#6a6050', tex:'metal'  },
+    { label:'Psyche',   color:'#a89c88', glow:'#706858', tex:'metal'  },
+    { label:'Eros',     color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
+    { label:'Hygiea',   color:'#8a98a8', glow:'#4a5868', tex:'icy'    },
+    { label:'Apophis',  color:'#6a5a4a', glow:'#3a2a1a', tex:'carbon' },
   ],
   [
-    { label:'冥王星', color:'#b09070', glow:'#6a5040', tex:'cratered' },
-    { label:'谷神星', color:'#888078', glow:'#4a4440', tex:'cratered' },
-    { label:'阋神星', color:'#c8c8c8', glow:'#808080', tex:'icy'      },
-    { label:'妊神星', color:'#a8b0b8', glow:'#606870', tex:'icy'      },
-    { label:'鸟神星', color:'#a09080', glow:'#605040', tex:'cratered' },
-    { label:'创神星', color:'#9a9a9a', glow:'#505050', tex:'icy'      },
-    { label:'塞德娜', color:'#c05840', glow:'#702818', tex:'cratered' },
+    { label:'Pluto',   color:'#b09070', glow:'#6a5040', tex:'cratered' },
+    { label:'Ceres',   color:'#888078', glow:'#4a4440', tex:'cratered' },
+    { label:'Eris',    color:'#c8c8c8', glow:'#808080', tex:'icy'      },
+    { label:'Haumea',  color:'#a8b0b8', glow:'#606870', tex:'icy'      },
+    { label:'Makemake',color:'#a09080', glow:'#605040', tex:'cratered' },
+    { label:'Quaoar',  color:'#9a9a9a', glow:'#505050', tex:'icy'      },
+    { label:'Sedna',   color:'#c05840', glow:'#702818', tex:'cratered' },
   ],
   [
-    { label:'水星',      color:'#8a8078', glow:'#4a4440', tex:'mercury' },
-    { label:'金星',      color:'#d8b878', glow:'#8a7030', tex:'venus'   },
-    { label:'地球',      color:'#4a80c0', glow:'#2a5080', tex:'earth'   },
-    { label:'火星',      color:'#c06040', glow:'#702818', tex:'mars'    },
-    { label:'开普勒-186f', color:'#a85840', glow:'#5a2818', tex:'venus' },
-    { label:'开普勒-442b', color:'#4a8868', glow:'#1a4838', tex:'earth' },
-    { label:'TRAPPIST-1e', color:'#5a98b8', glow:'#2a5878', tex:'earth' },
-    { label:'比邻星b',     color:'#c87858', glow:'#683020', tex:'mars'  },
+    { label:'Mercury',       color:'#8a8078', glow:'#4a4440', tex:'mercury' },
+    { label:'Venus',         color:'#d8b878', glow:'#8a7030', tex:'venus'   },
+    { label:'Earth',         color:'#4a80c0', glow:'#2a5080', tex:'earth'   },
+    { label:'Mars',          color:'#c06040', glow:'#702818', tex:'mars'    },
+    { label:'Kepler-186f',   color:'#a85840', glow:'#5a2818', tex:'venus'   },
+    { label:'Kepler-442b',   color:'#4a8868', glow:'#1a4838', tex:'earth'   },
+    { label:'TRAPPIST-1e',   color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
+    { label:'Proxima b',     color:'#c87858', glow:'#683020', tex:'mars'    },
   ],
   [
-    { label:'开普勒-22b',  color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
-    { label:'格利泽581g',  color:'#4a8868', glow:'#1a4838', tex:'earth'   },
-    { label:'开普勒-452b', color:'#5a8878', glow:'#284840', tex:'earth'   },
-    { label:'开普勒-69c',  color:'#a85840', glow:'#5a2818', tex:'venus'   },
-    { label:'开普勒-10c',  color:'#8a7868', glow:'#4a4030', tex:'mercury' },
+    { label:'Kepler-22b',  color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
+    { label:'Gliese 581g', color:'#4a8868', glow:'#1a4838', tex:'earth'   },
+    { label:'Kepler-452b', color:'#5a8878', glow:'#284840', tex:'earth'   },
+    { label:'Kepler-69c',  color:'#a85840', glow:'#5a2818', tex:'venus'   },
+    { label:'Kepler-10c',  color:'#8a7868', glow:'#4a4030', tex:'mercury' },
     { label:'HD 40307g',   color:'#3a6a88', glow:'#1a3858', tex:'earth'   },
-    { label:'开普勒-20b',  color:'#a06848', glow:'#603020', tex:'venus'   },
+    { label:'Kepler-20b',  color:'#a06848', glow:'#603020', tex:'venus'   },
   ],
   [
-    { label:'木星',        color:'#c8a878', glow:'#7a5838', tex:'jupiter'  },
-    { label:'土星',        color:'#d8c088', glow:'#8a7048', tex:'saturn'   },
-    { label:'天王星',      color:'#88c8d8', glow:'#408090', tex:'iceGiant' },
-    { label:'海王星',      color:'#4868c8', glow:'#203878', tex:'iceGiant' },
-    { label:'HD 189733b',  color:'#3a68a8', glow:'#1a3868', tex:'iceGiant' },
-    { label:'WASP-12b',    color:'#a06848', glow:'#603020', tex:'jupiter'  },
-    { label:'格利泽436b',  color:'#3a7898', glow:'#1a3858', tex:'iceGiant' },
-    { label:'北落师门b',   color:'#806050', glow:'#402818', tex:'jupiter'  },
+    { label:'Jupiter',      color:'#c8a878', glow:'#7a5838', tex:'jupiter'  },
+    { label:'Saturn',       color:'#d8c088', glow:'#8a7048', tex:'saturn'   },
+    { label:'Uranus',       color:'#88c8d8', glow:'#408090', tex:'iceGiant' },
+    { label:'Neptune',      color:'#4868c8', glow:'#203878', tex:'iceGiant' },
+    { label:'HD 189733b',   color:'#3a68a8', glow:'#1a3868', tex:'iceGiant' },
+    { label:'WASP-12b',     color:'#a06848', glow:'#603020', tex:'jupiter'  },
+    { label:'Gliese 436b',  color:'#3a7898', glow:'#1a3858', tex:'iceGiant' },
+    { label:'Fomalhaut b',  color:'#806050', glow:'#402818', tex:'jupiter'  },
   ],
   [
-    { label:'L型褐矮星', color:'#c05828', glow:'#802010', tex:'brownDwarf' },
-    { label:'T型褐矮星', color:'#804838', glow:'#401818', tex:'brownDwarf' },
-    { label:'Y型褐矮星', color:'#604838', glow:'#301818', tex:'brownDwarf' },
-    { label:'WISE 0855', color:'#705848', glow:'#302018', tex:'brownDwarf' },
+    { label:'L-type Brown Dwarf', color:'#c05828', glow:'#802010', tex:'brownDwarf' },
+    { label:'T-type Brown Dwarf', color:'#804838', glow:'#401818', tex:'brownDwarf' },
+    { label:'Y-type Brown Dwarf', color:'#604838', glow:'#301818', tex:'brownDwarf' },
+    { label:'WISE 0855',          color:'#705848', glow:'#302018', tex:'brownDwarf' },
   ],
   [
-    { label:'比邻星',      color:'#d05030', glow:'#a02810', tex:'starM' },
-    { label:'巴纳德星',    color:'#c04828', glow:'#902010', tex:'starM' },
-    { label:'太阳',        color:'#f8d850', glow:'#c09010', tex:'starG' },
-    { label:'南门二A',     color:'#f8d870', glow:'#c09020', tex:'starG' },
-    { label:'天苑四',      color:'#e89040', glow:'#b06010', tex:'starK' },
-    { label:'鲸鱼座τ星',   color:'#e89050', glow:'#b06020', tex:'starK' },
+    { label:'Proxima Centauri',  color:'#d05030', glow:'#a02810', tex:'starM' },
+    { label:"Barnard's Star",    color:'#c04828', glow:'#902010', tex:'starM' },
+    { label:'Sun',               color:'#f8d850', glow:'#c09010', tex:'starG' },
+    { label:'Alpha Centauri A',  color:'#f8d870', glow:'#c09020', tex:'starG' },
+    { label:'Epsilon Eridani',   color:'#e89040', glow:'#b06010', tex:'starK' },
+    { label:'Tau Ceti',          color:'#e89050', glow:'#b06020', tex:'starK' },
   ],
   [
-    { label:'天狼星A', color:'#c8e0f8', glow:'#6090c8', tex:'starA' },
-    { label:'织女星',  color:'#d8e8ff', glow:'#70a0e0', tex:'starA' },
-    { label:'参宿七',  color:'#70a8f8', glow:'#2050c0', tex:'starO' },
-    { label:'天津四',  color:'#88b8ff', glow:'#3060c0', tex:'starO' },
-    { label:'手枪星',  color:'#6098e8', glow:'#1040b0', tex:'starO' },
+    { label:'Sirius A',  color:'#c8e0f8', glow:'#6090c8', tex:'starA' },
+    { label:'Vega',      color:'#d8e8ff', glow:'#70a0e0', tex:'starA' },
+    { label:'Rigel',     color:'#70a8f8', glow:'#2050c0', tex:'starO' },
+    { label:'Deneb',     color:'#88b8ff', glow:'#3060c0', tex:'starO' },
+    { label:'Pistol Star',color:'#6098e8', glow:'#1040b0', tex:'starO' },
   ],
   [
-    { label:'蟹状脉冲星',   color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
-    { label:'船帆座脉冲星', color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
+    { label:'Crab Pulsar',  color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
+    { label:'Vela Pulsar',  color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
     { label:'SGR 1806-20',  color:'#e8e0ff', glow:'#a080ff', tex:'neutron' },
   ],
   [
-    { label:'天鹅座X-1', color:'#050510', glow:'#ff9a3c', tex:'blackhole' },
-    { label:'人马座A*',  color:'#050510', glow:'#ff7a2c', tex:'blackhole' },
-    { label:'M87*',      color:'#050510', glow:'#ffaa4c', tex:'blackhole' },
-    { label:'3C 273',    color:'#050510', glow:'#ff9a5c', tex:'blackhole' },
+    { label:'Cygnus X-1',       color:'#050510', glow:'#ff9a3c', tex:'blackhole' },
+    { label:'Sagittarius A*',   color:'#050510', glow:'#ff7a2c', tex:'blackhole' },
+    { label:'M87*',             color:'#050510', glow:'#ffaa4c', tex:'blackhole' },
+    { label:'3C 273',           color:'#050510', glow:'#ff9a5c', tex:'blackhole' },
   ],
 ];
 
@@ -370,8 +387,7 @@ function resize(){
   cv.style.height = H+'px';
   buildStars();
   buildNebula();
-  // 屏幕尺寸变化时，确保指针目标仍在画面内
-  if (game && game.mouse){
+  if (typeof game !== 'undefined' && game && game.mouse){
     game.mouse.sx = clamp(game.mouse.sx, 0, W);
     game.mouse.sy = clamp(game.mouse.sy, 0, H);
   }
@@ -808,13 +824,15 @@ const game = {
   meteorSpawnTimer: 0,
   showerTimer: 0,
   maxStage: 0,
+  finale: null,
+  poemShown: false,
 };
 
 game.mouse.sx = window.innerWidth/2;
 game.mouse.sy = window.innerHeight/2;
 
 /* ============================================================
-   【手机适配】Pointer Events 统一处理鼠标 / 触摸 / 触控笔
+   Pointer Events
    ============================================================ */
 let isPointerDown = false;
 let activePointerId = null;
@@ -861,7 +879,6 @@ function endPointer(e){
 cv.addEventListener('pointerup', endPointer);
 cv.addEventListener('pointercancel', endPointer);
 
-// 兜底：部分老 WebView 不触发 pointer 事件
 if (!window.PointerEvent){
   cv.addEventListener('touchstart', e=>{
     if (!e.touches.length) return;
@@ -888,6 +905,30 @@ if (!window.PointerEvent){
   window.addEventListener('mousemove', e=>{
     setPointerTarget(e.clientX, e.clientY);
   });
+}
+
+/* ============================================================
+   Evolution (label follows texture)
+   ============================================================ */
+function evolveEntity(ent, newStage){
+  if (!ent || newStage <= ent.stage) return false;
+  ent.stage = newStage;
+  const list = CATALOG[newStage] || CATALOG[CATALOG.length - 1];
+  const vi = ent.isPlayer ? 0 : Math.floor(Math.random() * list.length);
+  ent.variant = vi;
+  if (ent.label) ent.label = list[vi].label;
+  if (ent.color) ent.color = list[vi].color;
+  if (ent.glow)  ent.glow  = list[vi].glow;
+  return true;
+}
+
+/* 彗星撞击玩家导致质量下降后，同步更新阶段与变体 */
+function syncPlayerStage(p){
+  const ns = stageOf(p.mass);
+  if (ns !== p.stage){
+    p.stage = ns;
+    p.variant = 0;
+  }
 }
 
 class TidalEvent {
@@ -959,11 +1000,7 @@ class TidalEvent {
       this.devourer.mass += tr;
       this.massPool -= tr;
       this.devourer.r = radiusOf(this.devourer.mass);
-      const ns = stageOf(this.devourer.mass);
-      if (ns > this.devourer.stage){
-        this.devourer.stage = ns;
-        this.devourer.variant = 0;
-      }
+      evolveEntity(this.devourer, stageOf(this.devourer.mass));
       if (this.isPlayerDevourer) this.devourer.pulse = 1;
     }
 
@@ -1150,8 +1187,8 @@ function shatterEnemyIntoFrags(e){
 
   if (game.enemies.length > 220) return;
 
-  const count = Math.floor(rand(5, 9));
-  const fragMass = (e.mass * 0.8) / count;
+  const count = Math.floor(rand(6, 10));
+  const fragMass = (e.mass * 0.85) / count;
   for (let i=0; i<count; i++){
     const fa = Math.random() * TAU, fs = rand(80, 260);
     game.enemies.push({
@@ -1159,8 +1196,10 @@ function shatterEnemyIntoFrags(e){
       y: e.y + Math.sin(fa) * (e.r * 0.4),
       vx: Math.cos(fa) * fs, vy: Math.sin(fa) * fs,
       mass: fragMass, r: radiusOf(fragMass), stage: stageOf(fragMass),
-      variant: 0, label: '', color: e.color, glow: e.glow, angle: Math.random()*TAU, spin: rand(-1,1),
-      aiTimer: 0, dead: false
+      variant: 0, label: '', color: e.color, glow: e.glow,
+      angle: Math.random()*TAU, spin: rand(-1,1),
+      aiTimer: 0, dead: false,
+      debris: true,
     });
   }
 }
@@ -1351,6 +1390,7 @@ class Comet {
         this.dead = true;
         p.mass = Math.max(10, p.mass - 150);
         p.r = radiusOf(p.mass);
+        syncPlayerStage(p);   /* FIX: 质量下降后同步阶段 */
         game.shake = 6;
         addSparks(this.x, this.y, '#90e0ff', 25);
         return;
@@ -1448,8 +1488,10 @@ function resetGame(){
     r: radiusOf(100),
     angle: 0,
     stage: 0,
+    variant: 0,
     pulse: 0,
     label: '',
+    isPlayer: true,
   };
   game.player   = p;
   game.enemies  = [];
@@ -1466,6 +1508,8 @@ function resetGame(){
   game.meteorSpawnTimer = 2.5;
   game.showerTimer = rand(15, 25);
   game.maxStage = 0;
+  game.finale   = null;
+  game.poemShown = false;
   game.state    = 'play';
 
   for (let i=0;i<70;i++) spawnEnemy(true);
@@ -1542,11 +1586,7 @@ function devourDirect(victim, devourer, isPlayerDevourer){
   victim.dead = true;
   devourer.mass += victim.mass * 0.95;
   devourer.r = radiusOf(devourer.mass);
-  const ns = stageOf(devourer.mass);
-  if (ns > devourer.stage){
-    devourer.stage = ns;
-    devourer.variant = 0;
-  }
+  evolveEntity(devourer, stageOf(devourer.mass));
   if (isPlayerDevourer) devourer.pulse = 1;
   addSparks(victim.x, victim.y, victim.color, 12);
 }
@@ -1610,6 +1650,7 @@ function triggerPlayerShatter(p, e){
   p.mass = Math.max(15, p.mass - lostMass);
   p.r = radiusOf(p.mass);
   p.stage = stageOf(p.mass);
+  p.variant = 0;
 
   game.shake = 12;
   game.events.push(new MutualCrashEvent((p.x+e.x)/2, (p.y+e.y)/2, Math.max(p.r, e.r), '#4a80c0', e.color || '#ff3333'));
@@ -1629,13 +1670,14 @@ function triggerPlayerShatter(p, e){
       vx: Math.cos(fa) * fs, vy: Math.sin(fa) * fs,
       mass: fragMass, r: radiusOf(fragMass), stage: stageOf(fragMass),
       variant: 0, label: '', color: '#9ae6ff', glow: '#3fb8ff', angle: Math.random()*TAU, spin: rand(-1,1),
-      aiTimer: 0, aiMode:'normal', dead: false
+      aiTimer: 0, aiMode:'normal', dead: false, debris: true
     });
   }
 }
 
 function gameOver(){
   if (game.state !== 'play') return;
+  if (game.finale || game.poemShown) return;
   game.state = 'over';
   showOver();
 }
@@ -1676,12 +1718,18 @@ function updatePlayer(dt){
   const ns = stageOf(p.mass);
   if (ns > p.stage){
     p.stage = ns;
+    p.variant = 0;
     game.maxStage = Math.max(game.maxStage, ns);
     game.shake = Math.min(game.shake + 4, 8);
     game.ripples.push({
-      x:p.x, y:p.y, r:p.r*0.8, max:p.r*12, life:1, color: CATALOG[ns][0].glow || '#ffffff'
+      x:p.x, y:p.y, r:p.r*0.8, max:p.r*12, life:1,
+      color: (CATALOG[ns][0] && CATALOG[ns][0].glow) || '#ffffff'
     });
-    addSparks(p.x, p.y, CATALOG[ns][0].glow || '#ffffff', 30);
+    addSparks(p.x, p.y, (CATALOG[ns][0] && CATALOG[ns][0].glow) || '#ffffff', 30);
+  }
+
+  if (ns >= 10 && !game.finale && game.state === 'play' && !game.poemShown){
+    startFinale();
   }
 }
 
@@ -1709,6 +1757,24 @@ function updateEnemies(dt){
       } else {
         triggerPlayerShatter(p, e);
       }
+
+      /* FIX: 玩家在同一帧被吞噬升级到黑洞时，立即进入终章，避免后续判定 gameOver */
+      if (!game.finale && !game.poemShown && stageOf(p.mass) >= 10){
+        startFinale();
+        return;
+      }
+    }
+
+    if (e.debris){
+      const pull = 1500 * (1 - clamp(d / (viewR * 1.8), 0, 0.92));
+      e.vx += (dx / d) * pull * dt;
+      e.vy += (dy / d) * pull * dt;
+      e.angle += e.spin * dt;
+      const dampD = Math.pow(0.55, dt);
+      e.vx *= dampD; e.vy *= dampD;
+      e.x += e.vx*dt; e.y += e.vy*dt;
+      if (d > viewR * 4.5) game.enemies.splice(i, 1);
+      continue;
     }
 
     if (d > viewR * 1.3) {
@@ -1740,7 +1806,7 @@ function updateEnemies(dt){
       for (let j=0; j<game.enemies.length; j++){
         if (i === j) continue;
         const other = game.enemies[j];
-        if (other.dead) continue;
+        if (other.dead || other.debris) continue;
         const odist = Math.hypot(other.x - e.x, other.y - e.y);
 
         if (odist < viewR * 0.8 && e.mass > other.mass * CAN_TEAR_RATIO && odist < nearestSmallerDist) {
@@ -1807,6 +1873,8 @@ function updateRipples(dt){
 }
 
 function spawnLogic(dt){
+  if (game.finale) return;
+
   let alive = 0;
   for (let i = game.enemies.length - 1; i >= 0; i--){
     if (game.enemies[i].dead) game.enemies.splice(i, 1);
@@ -1839,10 +1907,175 @@ function spawnLogic(dt){
   if (game.showerTimer <= 0){
     const showerCount = Math.floor(rand(6, 11));
     for (let i=0; i<showerCount; i++){
-      setTimeout(()=> { if (game.state === 'play') spawnDangerMeteor(true); }, i * 180);
+      setTimeout(()=> { if (game.state === 'play' && !game.finale) spawnDangerMeteor(true); }, i * 180);
     }
     game.showerTimer = rand(20, 32);
   }
+}
+
+/* ============================================================
+   Binary Black Hole finale
+   ============================================================ */
+function startFinale(){
+  if (game.finale || game.poemShown) return;
+
+  const p = game.player;
+  p.stage = 10;
+  p.variant = 0;
+
+  const ang = Math.random() * TAU;
+
+  game.meteors.length = 0;
+  game.comets.length = 0;
+  for (const e of game.enemies){
+    if (!e.dead) addSparks(e.x, e.y, e.color || '#8ab4ff', 4);
+  }
+  game.enemies.length = 0;
+  game.events.length = 0;
+
+  const D0 = Math.max(p.r * 6.0, 200);
+  const partnerMass = p.mass * 0.86;
+  const partner = {
+    x: p.x + Math.cos(ang) * D0,
+    y: p.y + Math.sin(ang) * D0,
+    mass: partnerMass,
+    r: radiusOf(partnerMass),
+    stage: 10,
+    variant: Math.floor(Math.random() * CATALOG[10].length),
+    label: '',
+    color: CATALOG[10][0].color,
+    glow: CATALOG[10][0].glow,
+    angle: Math.random() * TAU,
+    spin: 0.6,
+  };
+
+  const mt = p.mass + partnerMass;
+  game.finale = {
+    phase: 'inspiral',
+    t: 0,
+    duration: 9.5,
+    partner,
+    D0,
+    D: D0,
+    theta: ang,
+    cx: (p.x * p.mass + partner.x * partnerMass) / mt,
+    cy: (p.y * p.mass + partner.y * partnerMass) / mt,
+    waveTimer: 0,
+    mergerT: 0,
+    flash: 0,
+  };
+
+  game.shake = 6;
+  game.ripples.push({ x: game.finale.cx, y: game.finale.cy, r: p.r, max: p.r * 8, life: 1.2, color: '#9ac8ff' });
+}
+
+function updateFinale(dt){
+  const f = game.finale;
+  const p = game.player;
+  const q = f.partner;
+
+  if (f.phase === 'inspiral'){
+    f.t += dt;
+    const k = clamp(f.t / f.duration, 0, 1);
+
+    const minD = (p.r + q.r) * 1.12 + 6;
+    f.D = minD + (f.D0 - minD) * Math.pow(1 - k, 0.85);
+
+    const omega = 0.55 + 4.2 * Math.pow(k, 1.7);
+    f.theta += omega * dt;
+
+    const mt = Math.max(1, p.mass + q.mass);
+    const r1 = f.D * q.mass / mt;
+    const r2 = f.D * p.mass / mt;
+
+    p.x = f.cx + Math.cos(f.theta) * r1;
+    p.y = f.cy + Math.sin(f.theta) * r1;
+    q.x = f.cx - Math.cos(f.theta) * r2;
+    q.y = f.cy - Math.sin(f.theta) * r2;
+
+    p.angle += dt * (1.2 + k * 3);
+    q.angle += dt * (1.6 + k * 3.4);
+    p.vx = p.vy = 0;
+
+    const drain = q.mass * (0.05 + k * 0.18) * dt;
+    q.mass = Math.max(1, q.mass - drain);
+    p.mass += drain;
+    p.r = radiusOf(p.mass);
+    q.r = radiusOf(q.mass);
+
+    f.waveTimer -= dt;
+    if (f.waveTimer <= 0){
+      game.ripples.push({
+        x: f.cx, y: f.cy, r: f.D * 0.5, max: f.D * 3.6,
+        life: 1.0, color: '#9ac8ff'
+      });
+      f.waveTimer = Math.max(0.06, 0.3 - k * 0.24);
+    }
+
+    if (Math.random() < 0.55){
+      const a = Math.random() * TAU;
+      const rr = f.D * 0.5;
+      game.sparks.push({
+        x: f.cx + Math.cos(a) * rr,
+        y: f.cy + Math.sin(a) * rr,
+        vx: -Math.sin(a) * rand(40, 150),
+        vy: Math.cos(a) * rand(40, 150),
+        life: 1, color: '#a8c8ff', size: rand(1, 3.2)
+      });
+    }
+
+    game.shake = 2 + k * 10;
+
+    if (k >= 1){
+      f.phase = 'merger';
+      f.mergerT = 0;
+      f.flash = 1;
+      game.shake = 22;
+
+      const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+      game.events.push(new MutualCrashEvent(mx, my, Math.max(p.r, q.r) * 1.2, '#dff0ff', '#8ab4ff'));
+      for (let i = 0; i < 6; i++){
+        game.ripples.push({
+          x: mx, y: my, r: p.r * 1.2, max: p.r * (10 + i * 7),
+          life: 1.6, color: i % 2 ? '#ffffff' : '#9ac8ff'
+        });
+      }
+      addSparks(mx, my, '#ffffff', 120);
+
+      p.mass += q.mass;
+      p.r = radiusOf(p.mass);
+      p.x = mx; p.y = my;
+      q.mass = 0; q.r = 0;
+      f.cx = mx; f.cy = my;
+    }
+  } else if (f.phase === 'merger'){
+    f.mergerT += dt;
+    f.flash = Math.max(0, f.flash - dt * 0.75);
+    game.shake = Math.max(0, 22 - f.mergerT * 12);
+    p.angle += dt * 2.2;
+
+    if (f.mergerT > 2.6){
+      f.phase = 'done';
+      endWithPoem();
+    }
+    if (f.mergerT > 6.0 && !game.poemShown){
+      endWithPoem();
+    }
+  }
+
+  const span = Math.max(f.D + (p.r + q.r) * 2.4, p.r * 5.5, 240);
+  const targetZoom = clamp(Math.min(W, H) * 0.9 / span, 0.008, 1.15);
+  const camLerp = Math.min(1, dt * (f.phase === 'merger' ? 2.2 : 3.0));
+  game.cam.x += (f.cx - game.cam.x) * camLerp;
+  game.cam.y += (f.cy - game.cam.y) * camLerp;
+  game.cam.zoom += (targetZoom - game.cam.zoom) * Math.min(1, dt * 1.8);
+}
+
+function endWithPoem(){
+  if (game.poemShown) return;
+  game.poemShown = true;
+  game.state = 'over';
+  showPoemOver();
 }
 
 function drawBackground(){
@@ -1952,7 +2185,6 @@ function drawBody(x, y, r, stageIdx, variantIdx, rot){
   ctx.restore();
 }
 
-/* 手机上屏幕更小，标签阈值稍微放宽，避免满屏字 */
 function drawLabels(){
   const zoom = game.cam.zoom;
   const cam = game.cam;
@@ -1978,7 +2210,7 @@ function drawLabels(){
     const fsScreen = clamp(Math.round(e.r * zoom * 0.55), fsMin, fsMax);
     const fs = fsScreen / zoom;
 
-    ctx.font = `600 ${fs}px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.font = `600 ${fs}px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif`;
 
     const textY = e.y + e.r + fs * 0.55;
 
@@ -2012,6 +2244,29 @@ function drawWorld(){
   for (const m of game.meteors) m.draw();
   for (const ev of game.events) ev.draw();
 
+  if (game.finale && game.finale.partner && game.finale.partner.r > 0.5){
+    const q = game.finale.partner;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const bridge = ctx.createLinearGradient(p.x, p.y, q.x, q.y);
+    bridge.addColorStop(0, 'rgba(255,180,80,0.25)');
+    bridge.addColorStop(0.5, 'rgba(180,215,255,0.55)');
+    bridge.addColorStop(1, 'rgba(120,160,255,0.25)');
+    ctx.strokeStyle = bridge;
+    ctx.lineWidth = Math.max(1.5, p.r * 0.06);
+    const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    const nx = -(q.y - p.y), ny = (q.x - p.x);
+    const nl = Math.hypot(nx, ny) || 1;
+    const wave = Math.sin(game.time * 6) * p.r * 0.45;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.quadraticCurveTo(mx + nx / nl * wave, my + ny / nl * wave, q.x, q.y);
+    ctx.stroke();
+    ctx.restore();
+
+    drawBody(q.x, q.y, q.r, q.stage, q.variant, q.angle);
+  }
+
   if (game.player && game.state === 'play'){
     const pr = p.r * (1 + p.pulse*0.035);
     drawBody(p.x, p.y, pr, p.stage, 0, p.angle);
@@ -2035,7 +2290,6 @@ function drawWorld(){
   }
 }
 
-/* 屏幕空间的触摸位置指示器 */
 function drawTouchIndicator(){
   const ti = game.touchIndicator;
   if (!ti || !ti.active) return;
@@ -2074,6 +2328,19 @@ function render(){
   }
 
   drawTouchIndicator();
+
+  if (game.finale && game.finale.flash > 0.002){
+    const a = game.finale.flash;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, `rgba(255,255,255,${a})`);
+    g.addColorStop(0.35, `rgba(200,225,255,${a * 0.55})`);
+    g.addColorStop(1, 'rgba(90,130,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
 }
 
 let last = performance.now();
@@ -2085,19 +2352,44 @@ function loop(now){
 
   if (game.state === 'play'){
     game.playTime += dt;
-    updateCamera(dt);
-    updatePlayer(dt);
-    updateEnemies(dt);
-    checkEnemyCollisions();
-    updateComets(dt);
-    updateMeteors(dt);
-    updateEvents(dt);
-    updateSparks(dt);
-    updateRipples(dt);
-    spawnLogic(dt);
-    game.shake *= Math.pow(0.004, dt);
-    if (game.shake < 0.1) game.shake = 0;
-    updateHUD();
+
+    if (game.finale){
+      updateFinale(dt);
+      updateEvents(dt);
+      updateSparks(dt);
+      updateRipples(dt);
+      game.shake *= Math.pow(0.004, dt);
+      if (game.shake < 0.1) game.shake = 0;
+      updateHUD();
+    } else {
+      updateCamera(dt);
+      updatePlayer(dt);
+
+      if (!game.finale && !game.poemShown && game.player &&
+          stageOf(game.player.mass) >= 10 && game.state === 'play'){
+        startFinale();
+      }
+
+      if (!game.finale){
+        updateEnemies(dt);
+        checkEnemyCollisions();
+        updateComets(dt);
+        updateMeteors(dt);
+        updateEvents(dt);
+        updateSparks(dt);
+        updateRipples(dt);
+        spawnLogic(dt);
+        game.shake *= Math.pow(0.004, dt);
+        if (game.shake < 0.1) game.shake = 0;
+        updateHUD();
+      } else {
+        updateSparks(dt);
+        updateRipples(dt);
+        game.shake *= Math.pow(0.004, dt);
+        if (game.shake < 0.1) game.shake = 0;
+        updateHUD();
+      }
+    }
   } else if (game.state === 'menu'){
     game.cam.x += dt * 26; game.cam.y += dt * 9;
   }
@@ -2122,12 +2414,25 @@ function fmtMass(m){
 
 function updateHUD(){
   const p = game.player;
+
+  if (game.finale){
+    const f = game.finale;
+    stageEl.textContent = f.phase === 'inspiral' ? 'Black Hole Binary' : 'Singularity';
+    massEl.textContent = fmtMass(p.mass);
+    cometEl.textContent = f.phase === 'inspiral' ? 'Gravitational waves radiating…' : 'Spacetime trembles…';
+    fillEl.style.width = '100%';
+    if (game.playTime > 7 && hintEl.style.opacity !== '0'){
+      hintEl.style.opacity = '0';
+    }
+    return;
+  }
+
   const si = p.stage;
   stageEl.textContent = STAGES[si].name;
   massEl.textContent  = fmtMass(p.mass);
 
   const orbitingCount = game.comets.filter(c => c.state === 'orbit').length;
-  cometEl.textContent = `环绕彗星: ${orbitingCount}`;
+  cometEl.textContent = `Orbiting Comets: ${orbitingCount}`;
 
   const next = STAGES[si+1];
   if (next){
@@ -2147,6 +2452,7 @@ const overlayEl = document.getElementById('overlay');
 const menuView  = document.getElementById('menuView');
 const overView  = document.getElementById('overView');
 const resultEl  = document.getElementById('result');
+const overTitleEl = document.getElementById('overTitle');
 
 function showMenu(){
   menuView.style.display = '';
@@ -2159,12 +2465,28 @@ function showOver(){
   menuView.style.display = 'none';
   overView.style.display = '';
   overlayEl.classList.remove('hide');
+  overTitleEl.textContent = 'ANNIHILATION';
 
   resultEl.innerHTML = `
     <span class="big">${STAGES[p.stage].name}</span>
-    终焉质量 ${fmtMass(p.mass)}<br>
-    存续时间 ${game.playTime.toFixed(1)} 秒<br>
-    最高阶段 ${STAGES[game.maxStage].name}
+    Final Mass ${fmtMass(p.mass)}<br>
+    Duration ${game.playTime.toFixed(1)} s<br>
+    Peak Stage ${STAGES[game.maxStage].name}
+  `;
+  resultEl.classList.remove('fadeIn');
+  void resultEl.offsetWidth;
+  resultEl.classList.add('fadeIn');
+}
+
+function showPoemOver(){
+  menuView.style.display = 'none';
+  overView.style.display = '';
+  overlayEl.classList.remove('hide');
+  overTitleEl.textContent = 'POEM OF BINARY STARS';
+
+  resultEl.innerHTML = `
+    <div class="poem">在微小的沙粒中<br>也藏着许多鲜为人知的壮丽诗篇</div>
+    <div class="poem-sub">Final Mass ${fmtMass(game.player.mass)} · Duration ${game.playTime.toFixed(1)} s</div>
   `;
   resultEl.classList.remove('fadeIn');
   void resultEl.offsetWidth;
@@ -2175,7 +2497,6 @@ function beginGame(){
   overlayEl.classList.add('hide');
   hudEl.classList.add('on');
   hintEl.style.opacity = '1';
-  // 重置触摸状态，防止上一局的触摸点影响新一局
   isPointerDown = false;
   activePointerId = null;
   game.touchIndicator.active = false;

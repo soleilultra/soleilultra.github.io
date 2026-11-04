@@ -1,2377 +1,2196 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>污染气体浓度地图可视化系统</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#020308">
+<title>星吞 · Stellar Devour (手机适配版)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    width:100%;
+    height:100vh;
+    height:100dvh;
+    overflow:hidden;
+    overscroll-behavior:none;
+    background:#020308;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+  }
+  canvas{
+    display:block;position:fixed;inset:0;
+    width:100%;height:100%;
+    cursor:crosshair;
+    touch-action:none;
+  }
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#165DFF',
-                        secondary: '#36D399',
-                        warning: '#FF9F43',
-                        danger: '#FF5252',
-                        dark: '#1E293B',
-                        light: '#F8FAFC'
-                    },
-                    fontFamily: {
-                        inter: ['Inter', 'sans-serif'],
-                    },
-                },
-            }
-        }
-    </script>
-    <style type="text/tailwindcss">
-        /* 适配暗色模式的弹窗（包括所有子元素） */
-        html.dark .mapboxgl-popup-content {
-            background: #1e293b !important;
-            color: #f1f5f9 !important;
-            border-radius: 0.75rem !important;
-            box-shadow: 0 8px 32px 0 rgba(0,0,0,0.25) !important;
-        }
+  #hud{
+    position:fixed;
+    left:max(16px, env(safe-area-inset-left));
+    top:max(14px, env(safe-area-inset-top));
+    pointer-events:none;z-index:5;
+    color:#cfe3ff;text-shadow:0 0 14px rgba(80,160,255,.55);
+    opacity:0;transition:opacity .6s;
+  }
+  #hud.on{opacity:1}
+  #stageName{
+    font-size:clamp(20px, 4.8vw, 27px);
+    font-weight:700;letter-spacing:clamp(1.5px,0.6vw,3px);display:inline-block;
+  }
+  #massVal{
+    font-size:clamp(10px, 2.4vw, 12px);
+    opacity:.55;margin-left:8px;letter-spacing:1px;
+  }
+  #cometCount{
+    font-size:clamp(11px, 2.6vw, 13px);
+    color:#7ce4ff;margin-top:3px;letter-spacing:1px;
+  }
+  #bar{
+    width:clamp(120px, 40vw, 186px);
+    height:3px;background:rgba(140,180,255,.14);
+    margin-top:8px;border-radius:2px;overflow:hidden;
+  }
+  #fill{
+    display:block;height:100%;width:0%;border-radius:2px;
+    background:linear-gradient(90deg,#3fb8ff,#9ae6ff);
+    box-shadow:0 0 10px rgba(100,200,255,.8);
+    transition:width .18s ease-out;
+  }
 
-            html.dark .mapboxgl-popup-content * {
-                color: #f1f5f9 !important;
-                background: transparent !important;
-            }
-        html.dark .mapboxgl-popup-tip {
-            border-top-color: #1e293b !important;
-        }
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
-            }
+  #hint{
+    position:fixed;
+    left:50%;
+    bottom:max(16px, env(safe-area-inset-bottom));
+    transform:translateX(-50%);
+    width:max-content;
+    max-width:90vw;
+    padding:0 12px;
+    font-size:clamp(10px, 2.8vw, 12px);
+    letter-spacing:clamp(1px,0.5vw,2px);
+    color:rgba(160,200,255,.4);
+    pointer-events:none;z-index:5;
+    transition:opacity .8s;
+    text-align:center;line-height:1.7;
+  }
+  .hint-mobile{display:none}
 
-            .scrollbar-hide {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-            }
-                .scrollbar-hide::-webkit-scrollbar {
-                    display: none;
-                }
-            .text-shadow {
-                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .card-hover {
-                transition: all 0.3s ease;
-            }
-                .card-hover:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-                }
-            .btn-effect {
-                position: relative;
-                overflow: hidden;
-            }
-                .btn-effect:after {
-                    content: "";
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    width: 5px;
-                    height: 5px;
-                    background: rgba(255, 255, 255, 0.5);
-                    opacity: 0;
-                    border-radius: 100%;
-                    transform: scale(1, 1) translate(-50%);
-                    transform-origin: 50% 50%;
-                }
-                .btn-effect:active:after {
-                    animation: ripple 1s ease-out;
-                }
-            @keyframes ripple {
-                0% {
-                    transform: scale(0, 0);
-                    opacity: 0.5;
-                }
-                100% {
-                    transform: scale(20, 20);
-                    opacity: 0;
-                }
-            }
-        }
-        #statsDrawer {
-            padding-top: 80px;
-        }
-        #statsDrawer .close-btn-fix {
-            z-index: 1100 !important;
-            position: absolute !important;
-        }
-        #statsDrawer h2 {
-            color: #165DFF !important;
-            opacity: 1 !important;
-            display: flex !important;
-        }
-    </style>
+  #overlay{
+    position:fixed;inset:0;z-index:10;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%,rgba(18,28,68,.9),rgba(2,3,9,.985) 70%);
+    color:#dbe9ff;transition:opacity .45s;
+    padding:max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  #overlay.hide{opacity:0;pointer-events:none}
+  #overlay h1{
+    font-size:clamp(40px, 13vw, 58px);
+    letter-spacing:clamp(8px, 3vw, 16px);
+    font-weight:200;
+    background:linear-gradient(180deg,#ffffff,#5fa8ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    margin-bottom:6px;
+    text-indent:clamp(8px, 3vw, 16px);
+    text-align:center;
+    line-height:1.1;
+  }
+  #overlay .sub{
+    font-size:clamp(10px, 2.8vw, 13px);
+    letter-spacing:clamp(3px, 1.5vw, 5px);
+    color:rgba(150,190,255,.55);
+    margin-bottom:clamp(20px, 4.5vh, 38px);
+    text-indent:clamp(3px, 1.5vw, 5px);
+    text-align:center;
+  }
+  #overlay .desc{
+    font-size:clamp(12px, 3vw, 14px);
+    line-height:1.9;
+    color:rgba(180,210,255,.65);
+    text-align:center;
+    margin-bottom:clamp(20px, 4vh, 34px);
+    letter-spacing:0.6px;
+    max-width:560px;
+    padding:0 4px;
+  }
+  #overlay .desc b{color:#7cc4ff;font-weight:600}
+  .btn{
+    min-height:48px;
+    padding:14px clamp(32px, 12vw, 54px);
+    font-size:clamp(14px, 3.6vw, 15px);
+    letter-spacing:clamp(3px, 1.5vw, 6px);
+    text-indent:clamp(3px, 1.5vw, 6px);
+    color:#cfe6ff;background:rgba(60,130,255,.1);
+    border:1px solid rgba(110,180,255,.45);border-radius:4px;
+    cursor:pointer;transition:all .3s;font-family:inherit;
+    touch-action:manipulation;
+  }
+  .btn:hover,.btn:active{
+    background:rgba(80,160,255,.28);border-color:#7cc4ff;
+    box-shadow:0 0 34px rgba(80,170,255,.5);color:#fff;
+  }
+  #result{
+    font-size:clamp(13px, 3.2vw, 15px);
+    line-height:2.0;text-align:center;
+    color:rgba(190,215,255,.8);
+    margin-bottom:clamp(20px, 4vh, 30px);
+    letter-spacing:0.5px;
+  }
+  #result .big{
+    font-size:clamp(26px, 8vw, 34px);
+    font-weight:700;letter-spacing:clamp(2px, 1vw, 4px);color:#fff;
+    display:block;margin-bottom:12px;
+    text-shadow:0 0 30px rgba(120,190,255,.8);
+  }
+  #overlay .over-title{
+    font-size:clamp(24px, 8vw, 34px);
+    letter-spacing:clamp(4px, 2vw, 8px);
+    margin-bottom:clamp(18px, 3.5vh, 26px);
+    text-indent:clamp(4px, 2vw, 8px);
+    background:linear-gradient(180deg,#ffffff,#5fa8ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    font-weight:200;text-align:center;line-height:1.1;
+  }
+  .fadeIn{animation:fadeIn .8s ease both}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* 触摸设备：显示触摸版提示 */
+  @media (hover:none) and (pointer:coarse){
+    .hint-desktop{display:none}
+    .hint-mobile{display:inline}
+    #hud #massVal{opacity:.65}
+  }
+
+  /* 窄屏（手机竖屏）微调 */
+  @media (max-width:480px){
+    #overlay .desc{line-height:1.8;font-size:11.5px}
+    #overlay .desc br{display:none}
+  }
+
+  /* 横屏矮屏：收紧垂直间距 */
+  @media (max-height:520px){
+    #overlay h1{font-size:clamp(30px, 8vh, 44px);letter-spacing:8px;margin-bottom:2px}
+    #overlay .sub{margin-bottom:12px;font-size:10px;letter-spacing:3px}
+    #overlay .desc{display:none}
+    #overlay .over-title{font-size:24px;letter-spacing:4px;margin-bottom:14px}
+    #result{font-size:12px;line-height:1.8;margin-bottom:14px}
+    #result .big{font-size:24px;margin-bottom:8px}
+  }
+</style>
 </head>
-<body class="font-inter bg-gray-50 dark:bg-gray-700 text-gray-800 min-h-screen flex flex-col">
-    <!-- 顶部导航栏 -->
-    <header class="bg-white dark:bg-gray-900 shadow-md z-50 sticky top-0 transition-all duration-300">
-        <div class="w-full max-w-full px-2 md:px-4 py-2 md:py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <i class="fa-solid fa-globe text-primary text-2xl"></i>
-                <h1 class="text-xl md:text-2xl font-bold text-primary dark:text-gray-100">污染气体浓度地图可视化系统</h1>
-            </div>
-            <div class="flex items-center space-x-4">
-                <button id="toggleTheme" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <i class="fa-solid fa-moon text-gray-600 dark:text-gray-200"></i>
-                </button>
-                <button id="helpBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <i class="fa-solid fa-question-circle text-gray-600 dark:text-gray-200"></i>
-                </button>
-            </div>
-        </div>
-    </header>
+<body>
+<canvas id="cv"></canvas>
 
-    <!-- 主要内容区 -->
-    <main class="flex-1 flex flex-col md:flex-row w-full max-w-full p-2 md:p-6 gap-4 md:gap-6 margin-top">
-        <!-- 左侧控制面板 -->
-        <aside class="w-full md:w-80 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg p-3 md:p-5 transition-all duration-300 flex flex-col">
-            <h2 class="text-xl font-bold mb-4 text-dark dark:text-gray-100 border-b pb-2 flex items-center">
-                <i class="fa-solid fa-sliders text-primary mr-2"></i>控制面板
-            </h2>
-            <!-- 文件上传 -->
-            <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
-                <h3 class="font-semibold mb-3 flex items-center">
-                    <i class="fa-solid fa-file-excel text-primary mr-2"></i>数据导入/导出
-                </h3>
-                <div class="flex flex-col space-y-3">
-                    <div class="flex items-center justify-center w-full">
-                        <label for="fileUpload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                <i class="fa-solid fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
-                                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">点击上传Excel文件</span></p>
-                                <p class="text-xs text-gray-500">支持 .xlsx, .xls 格式</p>
-                            </div>
-                            <input id="fileUpload" type="file" class="hidden" accept=".xlsx,.xls" />
-                        </label>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button id="exportData" class="btn-effect flex-1 py-2 px-4 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors flex items-center justify-center">
-                            <i class="fa-solid fa-file-export mr-2"></i>导出数据
-                        </button>
-                    </div>
+<div id="hud">
+  <div><span id="stageName">微陨石</span><span id="massVal">100</span></div>
+  <div id="cometCount">环绕彗星: 0</div>
+  <div id="bar"><i id="fill"></i></div>
+</div>
+<div id="hint">
+  <span class="hint-desktop">精细纹理 · 真实天体标注 · 温和节奏<br>永续补充 · 流星穿透 · 潮汐瓦解</span>
+  <span class="hint-mobile">拖动屏幕控制方向 · 吞噬更小天体<br>躲避更大天体与流星</span>
+</div>
 
-                </div>
-            </div>
-
-            <!-- 数据筛选 -->
-            <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
-                <h3 class="font-semibold mb-3 flex items-center">
-                    <i class="fa-solid fa-filter text-primary mr-2"></i>数据筛选
-                </h3>
-                <div class="space-y-4">
-                    <!-- 日期选择 -->
-                    <div>
-                        <label for="dateFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">选择日期</label>
-                        <div class="relative">
-                            <select id="dateFilter"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400">
-                                <!-- 选项由JS动态填充 -->
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- 污染气体类型选择 -->
-                    <div>
-                        <label for="gasType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                            污染气体类型
-                            <span class="text-xs text-gray-400">(按住Ctrl可多选)</span>
-                        </label>
-
-                        <select id="gasType" multiple
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-nonebg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 h-32">
-                            <option value="SO2">二氧化硫 (SO₂)</option>
-                            <option value="NO2">二氧化氮 (NO₂)</option>
-                            <option value="PM2.5">细颗粒物 (PM2.5)</option>
-                            <option value="PM10">可吸入颗粒物 (PM10)</option>
-                            <option value="CO">一氧化碳 (CO)</option>
-                            <option value="O3">臭氧 (O₃)</option>
-                        </select>
-
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-300">
-                            <i class="fa-solid fa-chevron-down text-xs"></i>
-                        </div>
-                    </div>
-                    <!-- 聚合半径设置 -->
-                    <div>
-                        <label for="clusterRadius" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                            聚合半径 (米)
-                        </label>
-                        <input type="number" id="clusterRadius" min="0" step="1" value="200" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" />
-                    </div>
-                    <!-- 应用筛选按钮 -->
-                    <button id="applyFilters" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
-                        <i class="fa-solid fa-magic mr-2"></i>应用筛选
-                    </button>
-                </div>
-            </div>
-
-            <!-- 数据管理 -->
-            <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
-                <h3 class="font-semibold mb-3 flex items-center">
-                    <i class="fa-solid fa-database text-primary mr-2"></i>数据管理
-                </h3>
-                <div class="space-y-3">
-                    <button id="deleteSelectedData" class="btn-effect w-full py-2 px-4 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition-colors flex items-center justify-center">
-                        <i class="fa-solid fa-trash mr-2"></i>删除选中数据
-                    </button>
-                    <button id="deleteAllData" class="btn-effect w-full py-2 px-4 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition-colors flex items-center justify-center">
-                        <i class="fa-solid fa-ban mr-2"></i>清空所有数据
-                    </button>
-                </div>
-            </div>
-
-            <!-- 地图控制 -->
-            <div class="p-4 bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 rounded-lg">
-                <h3 class="font-semibold mb-3 flex items-center">
-                    <i class="fa-solid fa-map text-primary mr-2"></i>地图控制
-                </h3>
-                <div class="space-y-3">
-                    <button id="locateMe" class="btn-effect w-full py-2 px-4 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors flex items-center justify-center">
-                        <i class="fa-solid fa-location-dot mr-2"></i>定位我的位置
-                    </button>
-                    <button id="resetView"
-                            class="btn-effect w-full py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center">
-                        <i class="fa-solid fa-arrows-rotate mr-2"></i>重置视图
-                    </button>
-                </div>
-            </div>
-
-            <div class="mt-auto text-center text-xs text-gray-500">
-                <p>污染气体浓度地图可视化系统 v2.0</p>
-            </div>
-        </aside>
-
-        <!-- 右侧地图和数据显示区 -->
-        <div class="flex-1 flex flex-col gap-4 md:gap-6">
-            <!-- 地图容器 -->
-            <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-lg overflow-hidden flex-1 flex flex-col">
-                <div class="p-4 border-b flex justify-between items-center">
-                    <h2 class="text-xl font-bold text-dark dark:text-gray-100 flex items-center">
-                        <i class="fa-solid fa-map-marked-alt text-primary mr-2"></i>污染气体浓度分布图
-                    </h2>
-                    <div class="flex space-x-2">
-                        <button id="toggleFullscreen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
-                            <i class="fa-solid fa-expand text-gray-600 dark:text-gray-200 dark:text-gray-200"></i>
-                        </button>
-                        <button id="downloadMap" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:bg-gray-700 transition-colors">
-                            <i class="fa-solid fa-download text-gray-600 dark:text-gray-200 dark:text-gray-200"></i>
-                        </button>
-                    </div>
-                </div>
-                <div id="mapContainer" class="flex-1 relative min-h-[320px] md:min-h-[480px]">
-                    <!-- 污染物类型图例 -->
-                    <div id="pollutantLegend" class="absolute bottom-4 right-4 bg-white/90 dark:bg-gray-800/90 p-3 rounded-lg shadow-lg max-w-xs z-20">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="font-semibold text-sm text-gray-700 dark:text-gray-200 dark:text-gray-100">污染物类型图例</h3>
-                            <button id="toggleLegendBtn" class="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="收起/展开图例">
-                                <i id="toggleLegendIcon" class="fa fa-chevron-down text-gray-500"></i>
-                            </button>
-                        </div>
-                        <div id="legendContent">
-                            <div class="flex flex-col space-y-1 text-xs text-gray-700 dark:text-gray-200 dark:text-gray-100">
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(52,211,153,0.92)"></span>
-                                    <span>二氧化硫 (SO₂)</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(245,158,66,0.92)"></span>
-                                    <span>二氧化氮 (NO₂)</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(239,68,68,0.92)"></span>
-                                    <span>细颗粒物 (PM2.5)</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(59,130,246,0.92)"></span>
-                                    <span>可吸入颗粒物 (PM10)</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(251,191,36,0.92)"></span>
-                                    <span>一氧化碳 (CO)</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-4 h-4 rounded" style="background:rgba(167,139,250,0.92)"></span>
-                                    <span>臭氧 (O₃)</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- 地图样式切换控件 -->
-                    <div id="mapStyleSwitcher" style="position:absolute;top:16px;left:16px;z-index:20;">
-                        <select id="mapStyleSelect"
-                                class="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100 shadow transition-colors">
-                            <option value="light">街道图</option>
-                            <option value="dark">暗色图</option>
-                            <option value="outdoors">地形图</option>
-                            <option value="satellite">卫星图</option>
-                            <option value="satellite-streets">卫星街道图</option>
-                        </select>
-                    </div>
-
-                    <div id="map" class="w-full h-full"></div>
-
-                    <!-- 加载中遮罩 -->
-                    <div id="loadingOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center z-10 hidden">
-                        <div class="flex flex-col items-center">
-                            <div class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
-                            <p class="text-gray-600 dark:text-gray-200 font-medium">加载中...</p>
-                        </div>
-                    </div>
-
-
-
-                </div>
-            </div>
-
-            <!-- 数据统计和输入区 -->
-        </div>
-    </main>
-    <!-- 统计区抽屉面板，初始隐藏 -->
-    <div id="statsDrawer" class="fixed right-0 bottom-0 top-0 w-full md:w-auto bg-white dark:bg-gray-800 shadow-2xl z-60">
-        <button onclick="document.getElementById('toggleStatsDrawer').click()" class="md:hidden absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:text-gray-200 close-btn-fix">
-            <i class="fa-solid fa-times text-2xl"></i>
-        </button>
-        <div class="p-4 flex flex-col md:flex-row gap-4 md:gap-6">
-            <!-- 数据统计卡片 ... -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-1">
-
-                <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
-                    <i class="fa-solid fa-chart-line text-primary mr-2"></i>数据统计
-                </h2>
-                <div class="px-4 pb-4">
-                    <div class="flex flex-col gap-2 mb-2">
-                        <div class="flex flex-col">
-                            <label for="statStartDate" class="text-sm text-gray-600 dark:text-gray-200">起始日期</label>
-                            <input type="date" id="statStartDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
-                        </div>
-                        <div class="flex flex-col">
-                            <label for="statEndDate" class="text-sm text-gray-600 dark:text-gray-200">结束日期</label>
-                            <input type="date" id="statEndDate" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-900 dark:text-gray-100 text-sm" />
-                        </div>
-                        <button id="statDateApply" class="px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 text-sm mt-2">应用</button>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">监测点数量</span>
-                            <span id="stationCount" class="text-lg font-semibold text-primary">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">平均浓度</span>
-                            <span id="avgConcentration" class="text-lg font-semibold text-primary">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最高浓度</span>
-                            <span id="maxConcentration" class="text-lg font-semibold text-danger">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600 dark:text-gray-200 dark:text-gray-200">最低浓度</span>
-                            <span id="minConcentration" class="text-lg font-semibold text-secondary">0</span>
-                        </div>
-                    </div>
-                    <div id="predictionPanel" class="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <h3 class="font-semibold text-base mb-2 flex items-center">
-                            <i class="fa-solid fa-chart-line text-primary mr-2"></i>未来3天浓度预测
-                        </h3>
-                        <div id="predictionResult" class="text-sm text-gray-700 dark:text-gray-200">请先筛选数据</div>
-                    </div>
-                    <!-- 图表容器 -->
-                    <div class="mt-4">
-                        <canvas id="concentrationChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-                <!-- 放大图表模态框 -->
-                <div id="chartModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-3xl w-full relative">
-                        <button id="closeChartModal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:text-gray-200 text-2xl">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                        <canvas id="bigConcentrationChart" width="800" height="400"></canvas>
-                    </div>
-                </div>
-            </div>
-            <!-- 实时数据卡片 -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg card-hover flex flex-col md:flex-1">
-                <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center px-4 pt-4">
-                    <i class="fa-solid fa-table text-primary mr-2"></i>实时数据
-                </h2>
-                <div class="px-4 pb-4 flex-1 flex flex-col">
-                    <div class="overflow-x-auto max-h-80 overflow-y-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 dark:bg-gray-700">
-                                <tr>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">监测点</th>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">日期</th>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">类型</th>
-                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">浓度</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dataTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 max-h-64 overflow-y-auto scrollbar-hide">
-                                <!-- 数据将通过JavaScript动态填充 -->
-                                <tr class="text-center">
-                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">暂无数据</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="mt-4 text-center">
-                        <button id="refreshData" class="btn-effect px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm">
-                            <i class="fa-solid fa-refresh mr-1"></i>刷新数据
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <!-- 手动数据输入卡片 -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 card-hover md:flex-1">
-                <h2 class="text-lg font-bold text-dark dark:text-gray-100 mb-4 flex items-center">
-                    <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
-                </h2>
-                <form id="manualDataForm" class="space-y-4">
-                    <div>
-                        <label for="manualLat" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">纬度</label>
-                        <input type="number" id="manualLat" step="any" placeholder="例如: 39.9042" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    </div>
-                    <div>
-                        <label for="manualLng" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">经度</label>
-                        <input type="number" id="manualLng" step="any" placeholder="例如: 116.4074" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    </div>
-                    <div>
-                        <label for="manualDate" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">日期</label>
-                        <input type="date" id="manualDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100" required>
-                    </div>
-                    <div class="relative">
-                        <label for="manualGasType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">污染气体类型</label>
-                        <select id="manualGasType"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
-                            <option value="SO2">二氧化硫 (SO₂)</option>
-                            <option value="NO2">二氧化氮 (NO₂)</option>
-                            <option value="PM2.5">细颗粒物 (PM2.5)</option>
-                            <option value="PM10">可吸入颗粒物 (PM10)</option>
-                            <option value="CO">一氧化碳 (CO)</option>
-                            <option value="O3">臭氧 (O₃)</option>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-300">
-                            <i class="fa-solid fa-chevron-down text-xs"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <label for="manualConcentration" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">浓度值</label>
-                        <input type="number" id="manualConcentration" step="any" placeholder="例如: 56.7"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors
-                bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    </div>
-                    <button type="submit" class="btn-effect w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
-                        <i class="fa-solid fa-plus mr-2"></i>添加数据
-                    </button>
-                </form>
-            </div>
-
-        </div>
+<div id="overlay">
+  <div id="menuView">
+    <h1>星 吞</h1>
+    <div class="sub">STELLAR DEVOUR</div>
+    <div class="desc">
+      精细纹理版 · <b>真实天体标注</b><br>
+      灶神星 · 冥王星 · 开普勒-22b · HD 189733b · 天鹅座X-1……<br>
+      每种天体都有独特的程序化表面纹理<br>
+      <b>行星 → 恒星 → 中子星 → 黑洞</b>
     </div>
-    <!-- 帮助模态框 -->
-    <div id="helpModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="p-5 border-b flex justify-between items-center">
-                <h2 class="text-xl font-bold text-dark">使用帮助</h2>
-                <button id="closeHelpModal" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
-                    <i class="fa-solid fa-times text-gray-600 dark:text-gray-200"></i>
-                </button>
-            </div>
-            <div class="p-5 space-y-4">
-                <div>
-                    <h3 class="font-semibold text-lg mb-2 flex items-center">
-                        <i class="fa-solid fa-file-excel text-primary mr-2"></i>数据导入/导出
-                    </h3>
-                    <p class="text-gray-600 dark:text-gray-200">支持上传Excel文件(.xlsx, .xls)，文件应包含以下列：纬度、经度、日期、污染气体类型、浓度值。也可以导出当前数据为Excel文件。</p>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-lg mb-2 flex items-center">
-                        <i class="fa-solid fa-map-marked-alt text-primary mr-2"></i>地图操作
-                    </h3>
-                    <ul class="text-gray-600 dark:text-gray-200 list-disc pl-5 space-y-1">
-                        <li>点击地图上的柱状图可查看详细数据</li>
-                        <li>使用鼠标滚轮或双击放大/缩小地图</li>
-                        <li>按住鼠标左键拖动可平移地图</li>
-                        <li>点击"定位我的位置"按钮可自动定位到当前位置</li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-lg mb-2 flex items-center">
-                        <i class="fa-solid fa-filter text-primary mr-2"></i>数据筛选
-                    </h3>
-                    <p class="text-gray-600 dark:text-gray-200">可通过选择日期和污染气体类型来筛选显示的数据，点击"应用筛选"按钮生效。</p>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-lg mb-2 flex items-center">
-                        <i class="fa-solid fa-trash text-primary mr-2"></i>数据删除
-                    </h3>
-                    <p class="text-gray-600 dark:text-gray-200">点击地图上的柱状图选中数据点后，可使用"删除选中数据"按钮删除该数据点。使用"清空所有数据"按钮可删除所有已加载的数据。</p>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-lg mb-2 flex items-center">
-                        <i class="fa-solid fa-pencil text-primary mr-2"></i>手动数据输入
-                    </h3>
-                    <p class="text-gray-600 dark:text-gray-200">可通过手动输入经纬度、日期、气体类型和浓度值来添加新的数据点，添加后将自动显示在地图上。</p>
-                </div>
-            </div>
-            <div class="p-5 border-t flex justify-end">
-                <button id="confirmHelpModal" class="btn-effect px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                    我知道了
-                </button>
-            </div>
-        </div>
-    </div>
-    <!-- 通知提示 -->
-    <div id="notification" class="fixed bottom-4 right-4 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg p-4 max-w-xs transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-start">
-        <div id="notificationIcon" class="mr-3 text-xl"></div>
-        <div>
-            <h4 id="notificationTitle" class="font-semibold text-sm"></h4>
-            <p id="notificationMessage" class="text-sm text-gray-600 dark:text-gray-200 mt-1"></p>
-        </div>
-        <button id="closeNotification" class="ml-4 text-gray-400 hover:text-gray-600 dark:text-gray-200">
-            <i class="fa-solid fa-times"></i>
-        </button>
-    </div>
-    <button id="toggleStatsDrawer" class="fixed bottom-6 right-6 z-60 bg-primary text-white rounded-full shadow-lg w-14 h-14 flex items-center justify-center text-2xl hover:bg-primary/90 transition-colors">
-        <i class="fa-solid fa-chart-line"></i>
-    </button>
-    <script>
-        function isValidLngLat(lng, lat) {
-            return typeof lng === 'number' && typeof lat === 'number' &&
-                !isNaN(lng) && !isNaN(lat) &&
-                lng >= -180 && lng <= 180 &&
-                lat >= -90 && lat <= 90;
-        }
-        //调用高德地图，失败则调用mapbox
-        async function geocodePlaceNameAmap(placeName) {
-            const key = ''; // 替换为你的高德Key
-            const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(placeName)}&output=JSON&key=${key}`;
-            try {
-                const resp = await fetch(url);
-                const data = await resp.json();
-
-                if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
-                    // 优先选择精确匹配的结果
-                    const exactMatch = data.geocodes.find(g => g.level.includes('门牌号') || g.level.includes('兴趣点'));
-                    const geo = exactMatch || data.geocodes[0];
-
-                    const loc = geo.location.split(',');
-                    return {
-                        lng: parseFloat(loc[0]),
-                        lat: parseFloat(loc[1]),
-                        formattedAddress: geo.formatted_address,
-                        confidence: geo.level // 可信度级别
-                    };
-                }
-            } catch (e) {
-                console.error('高德地理编码错误:', e);
-            }
-            return null;
-        }
-        // 批量高德地理编码（每次最多10个地址）
-        async function batchGeocodeAmap(addressList) {
-            const key = ''; // 替换为你的高德Key
-            // 高德API每次最多支持10个地址
-            const results = {};
-            for (let i = 0; i < addressList.length; i += 10) {
-                const batch = addressList.slice(i, i + 10);
-                const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(batch.join('|'))}&batch=true&output=JSON&key=${key}`;
-                try {
-                    const resp = await fetch(url);
-                    const data = await resp.json();
-                    if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
-                        data.geocodes.forEach((geo, idx) => {
-                            if (geo.location) {
-                                const loc = geo.location.split(',');
-                                results[batch[idx]] = {
-                                    lng: parseFloat(loc[0]),
-                                    lat: parseFloat(loc[1]),
-                                    formattedAddress: geo.formatted_address,
-                                    confidence: geo.level
-                                };
-                            } else {
-                                results[batch[idx]] = null;
-                            }
-                        });
-                    } else {
-                        batch.forEach(addr => { results[addr] = null; });
-                    }
-                } catch (e) {
-                    batch.forEach(addr => { results[addr] = null; });
-                }
-            }
-            return results;
-        }
-        // 地址标准化函数
-        function normalizeAddress(address) {
-            if (!address) return '';
-            // 去除特殊字符
-            address = address.replace(/[，。；、]/g, '');
-            // 标准化行政区划名称
-            address = address.replace(/省|自治区|直辖市/g, '省')
-                .replace(/市|自治州|地区|盟/g, '市')
-                .replace(/区|县|旗/g, '区');
-            // 去除多余空格
-            address = address.replace(/\s+/g, '');
-            return address;
-        }
-        // 初始化Mapbox地图
-        mapboxgl.accessToken = 'pk.eyJ1IjoiazhhdDl6Z28iLCJhIjoiY21hY2h5Mm5tMDNpejJtcXZxYW9kbzA4YyJ9.w4RIBZJv5DOmzfVZQ_FpXw'; // 替换为您的Mapbox访问令牌
-        async function geocodePlaceName(placeName) {
-            const accessToken = mapboxgl.accessToken;
-            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(placeName)}.json?access_token=${accessToken}&limit=1&language=zh`;
-            try {
-                const resp = await fetch(url);
-                const data = await resp.json();
-                if (data.features && data.features.length > 0) {
-                    return {
-                        lng: data.features[0].center[0],
-                        lat: data.features[0].center[1]
-                    };
-                }
-            } catch (e) { }
-            return null;
-        }
-        // 常见地名补全映射（可根据实际需求扩展）
-        const placeNamePatchMap = {
-            '西安交通大学': { province: '陕西省', city: '西安市', district: '碑林区' },
-            '清华大学': { province: '北京市', city: '北京市', district: '海淀区' },
-            '北京大学': { province: '北京市', city: '北京市', district: '海淀区' },
-            '复旦大学': { province: '上海市', city: '上海市', district: '杨浦区' }
-            // ...可继续添加其它常见地名
-        };
-        // 判断是否在中国境内
-        function outOfChina(lng, lat) {
-            return (lng < 72.004 || lng > 137.8347) || (lat < 0.8293 || lat > 55.8271);
-        }
-        function transformLat(x, y) {
-            var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
-            ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
-            ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
-            ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
-            return ret;
-        }
-        function transformLng(x, y) {
-            var ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
-            ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
-            ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
-            ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
-            return ret;
-        }
-        // GCJ-02(火星坐标)转WGS-84
-        function gcj02ToWgs84(lng, lat) {
-            // 如果坐标已经超出中国范围，直接返回
-            if (outOfChina(lng, lat)) {
-                return [lng, lat];
-            }
-
-            const a = 6378245.0; // 长半轴
-            const ee = 0.00669342162296594323; // 扁率
-
-            function transformLat(x, y) {
-                let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
-                ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
-                ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
-                ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
-                return ret;
-            }
-
-            function transformLng(x, y) {
-                let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
-                ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
-                ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
-                ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
-                return ret;
-            }
-
-            let dlat = transformLat(lng - 105.0, lat - 35.0);
-            let dlng = transformLng(lng - 105.0, lat - 35.0);
-            let radlat = lat / 180.0 * Math.PI;
-            let magic = Math.sin(radlat);
-            magic = 1 - ee * magic * magic;
-            let sqrtmagic = Math.sqrt(magic);
-            dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
-            dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
-            let mglat = lat + dlat;
-            let mglng = lng + dlng;
-
-            return [lng * 2 - mglng, lat * 2 - mglat];
-        }
-        // WGS-84 转 GCJ-02
-        function wgs84ToGcj02(lng, lat) {
-            if (outOfChina(lng, lat)) {
-                return [lng, lat];
-            }
-            var a = 6378245.0;
-            var ee = 0.00669342162296594323;
-            var dlat = transformLat(lng - 105.0, lat - 35.0);
-            var dlng = transformLng(lng - 105.0, lat - 35.0);
-            var radlat = lat / 180.0 * Math.PI;
-            var magic = Math.sin(radlat);
-            magic = 1 - ee * magic * magic;
-            var sqrtmagic = Math.sqrt(magic);
-            dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
-            dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
-            var mglat = lat + dlat;
-            var mglng = lng + dlng;
-            return [mglng, mglat];
-        }
-        // 应用状态
-        const appState = {
-            data: [],
-            selectedGasTypes: [],
-            selectedDate: '',
-            selectedPoints: [],
-            map: null,
-            concentrationChart: null,
-            isDarkMode: false,
-            popup: null,
-            navControl: null,      // 新增
-            scaleControl: null     // 新增
-        };
-        // DOM元素
-        const elements = {
-            fileUpload: document.getElementById('fileUpload'),
-            loadSampleData: document.getElementById('loadSampleData'),
-            exportData: document.getElementById('exportData'),
-            dateFilter: document.getElementById('dateFilter'),
-            gasType: document.getElementById('gasType'),
-            applyFilters: document.getElementById('applyFilters'),
-            deleteSelectedData: document.getElementById('deleteSelectedData'),
-            deleteAllData: document.getElementById('deleteAllData'),
-            locateMe: document.getElementById('locateMe'),
-            resetView: document.getElementById('resetView'),
-            toggleFullscreen: document.getElementById('toggleFullscreen'),
-            downloadMap: document.getElementById('downloadMap'),
-            manualDataForm: document.getElementById('manualDataForm'),
-            refreshData: document.getElementById('refreshData'),
-            helpBtn: document.getElementById('helpBtn'),
-            closeHelpModal: document.getElementById('closeHelpModal'),
-            confirmHelpModal: document.getElementById('confirmHelpModal'),
-            helpModal: document.getElementById('helpModal'),
-            toggleTheme: document.getElementById('toggleTheme'),
-            notification: document.getElementById('notification'),
-            notificationIcon: document.getElementById('notificationIcon'),
-            notificationTitle: document.getElementById('notificationTitle'),
-            notificationMessage: document.getElementById('notificationMessage'),
-            closeNotification: document.getElementById('closeNotification'),
-            loadingOverlay: document.getElementById('loadingOverlay'),
-            dataTableBody: document.getElementById('dataTableBody'),
-            stationCount: document.getElementById('stationCount'),
-            avgConcentration: document.getElementById('avgConcentration'),
-            maxConcentration: document.getElementById('maxConcentration'),
-            minConcentration: document.getElementById('minConcentration'),
-            manualDate: document.getElementById('manualDate'),
-            clusterRadius: document.getElementById('clusterRadius'),
-        };
-        function updateDateFilterOptions() {
-            // 获取所有数据的日期，去重并排序
-            const allDates = Array.from(new Set(appState.data.map(item => item.date))).sort();
-            const dateFilter = elements.dateFilter;
-
-            if (!dateFilter) return;
-
-            // 清空现有选项
-            dateFilter.innerHTML = '';
-
-            // 没有数据时，添加一个禁用选项
-            if (allDates.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = '无可用日期';
-                opt.disabled = true;
-                opt.selected = true;
-                dateFilter.appendChild(opt);
-                appState.selectedDate = '';
-                return;
-            }
-
-            // 生成选项
-            allDates.forEach(date => {
-                const opt = document.createElement('option');
-                opt.value = date;
-                opt.textContent = date;
-                dateFilter.appendChild(opt);
-            });
-
-            // 如果当前选中的日期不在数据中，自动切换到第一个有数据的日期
-            if (!allDates.includes(dateFilter.value)) {
-                dateFilter.value = allDates[0];
-                appState.selectedDate = allDates[0];
-            } else {
-                appState.selectedDate = dateFilter.value;
-            }
-        }
-        // 初始化应用
-        function initApp() {
-            // 设置默认日期为今天
-            const today = new Date();
-            const formattedDate = today.toISOString().split('T')[0];
-            elements.dateFilter.value = formattedDate;
-            elements.manualDate.value = formattedDate;
-            appState.selectedDate = formattedDate;
-            const allDates = [];
-            const statStartDate = document.getElementById('statStartDate');
-            const statEndDate = document.getElementById('statEndDate');
-            if (allDates.length > 0) {
-                statStartDate.value = allDates[0];
-                statEndDate.value = allDates[allDates.length - 1];
-                // 不设置min/max，允许任意选择
-            }
-
-            // 默认全选所有类型
-            for (let i = 0; i < elements.gasType.options.length; i++) {
-                elements.gasType.options[i].selected = true;
-            }
-            appState.selectedGasTypes = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
-
-            // 初始化地图
-            initMap();
-
-            // 初始化图表
-            initChart();        
-            // 绑定事件处理程序
-            bindEvents();
-
-            // 显示帮助模态框
-            setTimeout(() => {
-                showHelpModal();
-            }, 1000);
-        }
-        // 初始化地图
-        function initMap() {
-            appState.map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/light-v10',
-                center: [116.4074, 39.9042],
-                zoom: 10
-            });
-            appState.map.on('load', () => {
-                // 初始化控件实例并添加
-                appState.navControl = new mapboxgl.NavigationControl();
-                appState.scaleControl = new mapboxgl.ScaleControl({
-                    maxWidth: 80,
-                    unit: 'metric'
-                });
-                appState.map.addControl(appState.navControl, 'top-right');
-                appState.map.addControl(appState.scaleControl);
-
-                // 不加载任何数据
-                elements.loadingOverlay.classList.add('hidden');
-            });
-        }
-        // 初始化图表
-        function initChart() {
-            const ctx = document.getElementById('concentrationChart').getContext('2d');
-            appState.concentrationChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: '平均浓度',
-                        data: [],
-                        backgroundColor: 'rgba(22, 93, 255, 0.1)',
-                        borderColor: 'rgba(22, 93, 255, 1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '浓度值'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: '日期'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        }
-        // 绑定事件处理程序
-        function bindEvents() {
-            document.getElementById('statDateApply').addEventListener('click', function () {
-                applyFilters(); // 触发统计图表刷新
-            });
-            elements.dateFilter.addEventListener('change', applyFilters);
-            elements.clusterRadius.addEventListener('change', applyFilters);
-            // 文件上传
-            elements.fileUpload.addEventListener('change', handleFileUpload);
-
-            // 导出数据
-            elements.exportData.addEventListener('click', exportDataToExcel);
-
-            // 应用筛选
-            elements.applyFilters.addEventListener('click', applyFilters);
-
-            // 删除选中数据
-            elements.deleteSelectedData.addEventListener('click', deleteSelectedData);
-
-            // 删除所有数据
-            elements.deleteAllData.addEventListener('click', deleteAllData);
-
-            // 定位我的位置
-            elements.locateMe.addEventListener('click', locateMe);
-
-            // 重置视图
-            elements.resetView.addEventListener('click', resetMapView);
-
-            // 全屏切换
-            elements.toggleFullscreen.addEventListener('click', toggleFullscreen);
-
-            // 下载地图
-            elements.downloadMap.addEventListener('click', downloadMap);
-
-            // 手动数据表单提交
-            elements.manualDataForm.addEventListener('submit', handleManualDataSubmit);
-
-            // 刷新数据
-            elements.refreshData.addEventListener('click', refreshData);
-
-            // 帮助模态框
-            elements.helpBtn.addEventListener('click', showHelpModal);
-            elements.closeHelpModal.addEventListener('click', hideHelpModal);
-            elements.confirmHelpModal.addEventListener('click', hideHelpModal);
-
-            // 主题切换
-            elements.toggleTheme.addEventListener('click', toggleTheme);
-
-            // 关闭通知
-            elements.closeNotification.addEventListener('click', hideNotification);
-            // 地图样式切换
-            const mapStyleSelect = document.getElementById('mapStyleSelect');
-            if (mapStyleSelect) {
-                mapStyleSelect.addEventListener('change', function () {
-                    let style = 'mapbox://styles/mapbox/light-v10';
-                    let isDark = false;
-                    switch (this.value) {
-                        case 'light':
-                            style = 'mapbox://styles/mapbox/light-v10';
-                            isDark = false;
-                            break;
-                        case 'dark':
-                            style = 'mapbox://styles/mapbox/dark-v10';
-                            isDark = true;
-                            break;
-                        case 'outdoors':
-                            style = 'mapbox://styles/mapbox/outdoors-v12';
-                            isDark = false;
-                            break;
-                        case 'satellite':
-                            style = 'mapbox://styles/mapbox/satellite-v9';
-                            isDark = false;
-                            break;
-                        case 'satellite-streets':
-                            style = 'mapbox://styles/mapbox/satellite-streets-v12';
-                            isDark = false;
-                            break;
-                    }
-                    // 同步页面主题
-                    appState.isDarkMode = isDark;
-                    if (isDark) {
-                        document.documentElement.classList.add('dark');
-                        elements.toggleTheme.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                        elements.toggleTheme.innerHTML = '<i class="fa-solid fa-moon text-gray-600 dark:text-gray-200"></i>';
-                    }
-                    if (appState.map) {
-                        appState.map.setStyle(style);
-                        appState.map.once('style.load', function () {
-                            // 先移除旧控件（如果有）
-                            try { if (appState.navControl) appState.map.removeControl(appState.navControl); } catch (e) { }
-                            try { if (appState.scaleControl) appState.map.removeControl(appState.scaleControl); } catch (e) { }
-                            // 重新创建并添加控件
-                            appState.navControl = new mapboxgl.NavigationControl();
-                            appState.scaleControl = new mapboxgl.ScaleControl({
-                                maxWidth: 80,
-                                unit: 'metric'
-                            });
-                            appState.map.addControl(appState.navControl, 'top-right');
-                            appState.map.addControl(appState.scaleControl);
-                            // 重新加载数据和图层
-                            applyFilters();
-                        });
-                    }
-                });
-            }
-        }
-        // 处理Excel数据
-        async function processExcelData(jsonData) {
-            const geoCache = {}; // 地名到经纬度的缓存
-            const placeFields = ['站点名称', '地点', '位置', '地址', 'site', 'place', 'location', 'name', '监测点'];
-            const results = [];
-            const addressMap = {}; // fullAddress => [item, ...]
-            const addressList = [];
-
-            // 1. 预处理，收集所有需要地理编码的地址
-            for (const item of jsonData) {
-                let lat = parseFloat(
-                    item['纬度'] || item['Latitude'] || item['lat'] ||
-                    item['纬度坐标'] || item['Y坐标'] || item['y']
-                );
-                let lng = parseFloat(
-                    item['经度'] || item['Longitude'] || item['lng'] ||
-                    item['经度坐标'] || item['X坐标'] || item['x']
-                );
-                if (isNaN(lat) || isNaN(lng)) {
-                    let addressParts = [];
-                    if (item['省'] || item['province']) addressParts.push(item['省'] || item['province']);
-                    if (item['市'] || item['city']) addressParts.push(item['市'] || item['city']);
-                    if (item['区'] || item['district'] || item['县'] || item['county']) {
-                        addressParts.push(item['区'] || item['district'] || item['县'] || item['county']);
-                    }
-                    for (const field of placeFields) {
-                        if (item[field]) {
-                            addressParts.push(item[field]);
-                            break;
-                        }
-                    }
-                    const fullAddress = normalizeAddress(addressParts.filter(Boolean).join(''));
-                    if (fullAddress) {
-                        if (!addressMap[fullAddress]) {
-                            addressMap[fullAddress] = [];
-                            addressList.push(fullAddress);
-                        }
-                        addressMap[fullAddress].push(item);
-                    }
-                }
-            }
-
-            // 2. 批量地理编码
-            let geoResults = {};
-            if (addressList.length > 0) {
-                geoResults = await batchGeocodeAmap(addressList);
-            }
-
-            // 3. 处理每条数据
-            for (const item of jsonData) {
-                let lat = parseFloat(
-                    item['纬度'] || item['Latitude'] || item['lat'] ||
-                    item['纬度坐标'] || item['Y坐标'] || item['y']
-                );
-                let lng = parseFloat(
-                    item['经度'] || item['Longitude'] || item['lng'] ||
-                    item['经度坐标'] || item['X坐标'] || item['x']
-                );
-                let usedBatchGeo = false;
-                if (isNaN(lat) || isNaN(lng)) {
-                    let addressParts = [];
-                    if (item['省'] || item['province']) addressParts.push(item['省'] || item['province']);
-                    if (item['市'] || item['city']) addressParts.push(item['市'] || item['city']);
-                    if (item['区'] || item['district'] || item['县'] || item['county']) {
-                        addressParts.push(item['区'] || item['district'] || item['县'] || item['county']);
-                    }
-                    for (const field of placeFields) {
-                        if (item[field]) {
-                            addressParts.push(item[field]);
-                            break;
-                        }
-                    }
-                    const fullAddress = normalizeAddress(addressParts.filter(Boolean).join(''));
-                    if (fullAddress && geoResults[fullAddress] && !outOfChina(geoResults[fullAddress].lng, geoResults[fullAddress].lat)) {
-                        [lng, lat] = gcj02ToWgs84(geoResults[fullAddress].lng, geoResults[fullAddress].lat);
-                        usedBatchGeo = true;
-                    } else if (fullAddress) {
-                        showNotification('警告', `无法解析地址: ${fullAddress}`, 'warning');
-                        results.push({
-                            error: `无法解析地址: ${fullAddress}`,
-                            rawData: item
-                        });
-                        continue;
-                    }
-                }
-                // 其余处理逻辑保持不变...
-                let date =
-                    item['日期'] || item['Date'] || item['监测日期'] ||
-                    item['date'] || item['采样日期'] || item['时间'];
-                if (typeof date === 'number') {
-                    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-                    excelEpoch.setDate(excelEpoch.getDate() + date);
-                    date = excelEpoch.toISOString().slice(0, 10);
-                }
-                let dateStr = date;
-                if (dateStr && dateStr.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
-                    const [y, m, d] = dateStr.split('/');
-                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-                }
-                if (dateStr && dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
-                    const [y, m, d] = dateStr.split('-');
-                    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-                }
-                let type =
-                    item['类型'] || item['气体类型'] || item['Gas Type'] ||
-                    item['type'] || item['污染物类型'] || item['污染类型'];
-                const typeMap = {
-                    'SO2': 'SO2', '二氧化硫': 'SO2',
-                    'NO2': 'NO2', '二氧化氮': 'NO2',
-                    'PM2.5': 'PM2.5', '细颗粒物': 'PM2.5',
-                    'PM10': 'PM10', '可吸入颗粒物': 'PM10',
-                    'CO': 'CO', '一氧化碳': 'CO',
-                    'O3': 'O3', '臭氧': 'O3'
-                };
-                type = typeMap[type] || type;
-                const concentration = parseFloat(
-                    item['浓度'] || item['Concentration'] || item['浓度值'] ||
-                    item['value'] || item['数值'] || item['测量值']
-                );
-                if (!isNaN(lat) && !isNaN(lng) && dateStr && type && !isNaN(concentration)) {
-                    results.push({
-                        lat,
-                        lng,
-                        date: dateStr,
-                        type,
-                        concentration,
-                        province: item['省'] || item['province'] || '',
-                        city: item['市'] || item['city'] || '',
-                        district: item['区'] || item['县'] || item['区/县'] || item['district'] || item['county'] || '',
-                        placeName: placeFields.map(f => item[f]).find(Boolean) || ''
-                    });
-                }
-            }
-            return results;
-        }
-        // 处理文件上传
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file || !/\.(xlsx|xls)$/i.test(file.name)) {
-                showNotification('错误', '请上传Excel文件（.xlsx或.xls）', 'error');
-                return;
-            }
-            if (file.size === 0) {
-                showNotification('错误', '文件为空', 'error');
-                return;
-            }
-
-            showLoading(true);
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    let workbook;
-                    try {
-                        workbook = XLSX.read(data, { type: 'array' });
-                    } catch (err) {
-                        showNotification('错误', 'Excel文件格式不正确或已损坏', 'error');
-                        return;
-                    }
-
-                    // 获取第一个工作表
-                    const firstSheetName = workbook.SheetNames[0];
-                    if (!firstSheetName) {
-                        showNotification('错误', 'Excel文件无有效工作表', 'error');
-                        return;
-                    }
-                    const worksheet = workbook.Sheets[firstSheetName];
-
-                    // 检查原始内容
-                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    if (!rawRows || rawRows.length < 2) {
-                        showNotification('错误', 'Excel文件无有效数据', 'error');
-                        return;
-                    }
-
-                    // 转换为JSON
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    if (!jsonData || jsonData.length === 0) {
-                        showNotification('错误', 'Excel文件无有效数据', 'error');
-                        return;
-                    }
-
-                    // 处理数据（异步）
-                    const processedData = await processExcelData(jsonData);
-
-                    // 为导入的数据生成唯一ID
-                    const dataWithIds = processedData.map(item => ({
-                        ...item,
-                        id: `import_${Math.random().toString(36).substr(2, 9)}`
-                    }));
-                    if (dataWithIds.length > 0) {
-                        // 自动切换筛选条件到导入数据的第一条
-                        for (let i = 0; i < elements.gasType.options.length; i++) {
-                            elements.gasType.options[i].selected = dataWithIds.some(d => d.type === elements.gasType.options[i].value);
-                        }
-                        elements.dateFilter.value = dataWithIds[0].date;
-                        // 选中导入数据的类型
-                        appState.selectedGasTypes = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
-                        appState.selectedDate = dataWithIds[0].date;
-                        // 合并数据并刷新
-                        appState.data = [...appState.data, ...dataWithIds];
-                        updateDateFilterOptions();
-                        applyFilters();
-                        showNotification('成功', '数据已成功导入', 'success');
-                    } else {
-                        showNotification('错误', '导入的数据无有效内容', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error reading file:', error);
-                    showNotification('错误', `文件解析失败: ${error.message}`, 'error');
-                } finally {
-                    showLoading(false);
-                    // 重置文件输入，允许重复上传同一文件
-                    event.target.value = '';
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-        // 导出数据到Excel
-        function exportDataToExcel() {
-            if (appState.data.length === 0) {
-                showNotification('提示', '没有数据可导出', 'info');
-                return;
-            }
-            try {
-                // 导出为高德(GCJ-02)坐标
-                const exportData = appState.data.map(item => {
-                    let gcj = [item.lng, item.lat];
-                    if (!outOfChina(item.lng, item.lat)) {
-                        gcj = wgs84ToGcj02(item.lng, item.lat);
-                    }
-                    return {
-                        '省': item.province || '',
-                        '市': item.city || '',
-                        '区/县': item.district || '',
-                        '地点': item.placeName || '',
-                        '经度': gcj[0],
-                        '纬度': gcj[1],
-                        '日期': item.date,
-                        '类型': item.type,
-                        '浓度值': item.concentration
-                    };
-                });
-                // 创建工作表
-                const worksheet = XLSX.utils.json_to_sheet(exportData);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "污染气体数据");
-
-                // 生成Excel文件并下载
-                const fileName = `污染气体数据_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                XLSX.writeFile(workbook, fileName);
-
-                showNotification('成功', '数据已成功导出', 'success');
-            } catch (error) {
-                console.error('导出数据失败:', error);
-                showNotification('错误', '导出数据失败', 'error');
-            }
-        }
-
-        // 加载数据到地图
-        function loadData(data) {
-            // 合并新数据与现有数据
-            appState.data = [...appState.data, ...data];
-
-            // 清除现有图层和源
-            if (appState.map.getLayer('pollution-points')) {
-                appState.map.removeLayer('pollution-points');
-            }
-
-            if (appState.map.getSource('pollution-points')) {
-                appState.map.removeSource('pollution-points');
-            }
-            updateDateFilterOptions();
-            // 应用筛选
-            applyFilters();
-        }
-        function applyFilters() {
-            // 获取多选的污染物类型
-            let selectedOptions = Array.from(elements.gasType.selectedOptions).map(opt => opt.value);
-            // 如果没有选中任何类型，自动全选
-            appState.selectedGasTypes = selectedOptions;
-            appState.selectedDate = elements.dateFilter.value;
-            // 筛选数据
-            let filteredData = [];
-            if (appState.selectedGasTypes.length > 0) {
-                filteredData = appState.data.filter(item =>
-                    appState.selectedGasTypes.includes(item.type) &&
-                    item.date === appState.selectedDate
-                );
-            }
-            // 如果没选任何类型，filteredData 就是空数组
-            // 更新地图
-            updateMap(filteredData);
-            // 更新统计信息
-            updateStatistics(filteredData);
-            // 更新表格数据
-            updateDataTable(filteredData);
-            // 更新图表
-            updateChart(filteredData);
-            // 如果有选中点，弹出popup并飞到该点
-            if (appState.selectedPoints.length === 1) {
-                const p = appState.selectedPoints[0];
-                appState.map.flyTo({
-                    center: [p.lng, p.lat],
-                    zoom: Math.max(appState.map.getZoom(), 14),
-                    speed: 1.2
-                });
-                showPopup({
-                    properties: {
-                        ...p,
-                        isSelected: true
-                    },
-                    geometry: { coordinates: [p.lng, p.lat] }
-                });
-            }
-
-        }
-        // 更新地图
-        const gasTypeColors = {
-            'SO2': 'rgba(52, 211, 153, 0.92)',     // 亮绿色 #34D399
-            'NO2': 'rgba(245, 158, 66, 0.92)',     // 亮橙色 #F59E42
-            'PM2.5': 'rgba(239, 68, 68, 0.92)',    // 鲜红色 #EF4444
-            'PM10': 'rgba(59, 130, 246, 0.92)',    // 亮蓝色 #3B82F6
-            'CO': 'rgba(251, 191, 36, 0.92)',      // 亮黄色 #FBBF24
-            'O3': 'rgba(167, 139, 250, 0.92)'      // 亮紫色 #A78BFA
-        };
-
-        function updateMap(data) {
-            // 1. GCJ-02 -> WGS-84，供地图渲染用
-            const dataForMap = data.map(item => {
-                const [wgsLng, wgsLat] = outOfChina(item.lng, item.lat) ? [item.lng, item.lat] : gcj02ToWgs84(item.lng, item.lat);
-                return { ...item, wgsLng, wgsLat };
-            });
-
-            // 2. 聚合逻辑（仍用GCJ-02，聚合精度更高）
-            let clusterRadius = 200;
-            if (elements.clusterRadius && elements.clusterRadius.value) {
-                clusterRadius = parseInt(elements.clusterRadius.value, 10) || 200;
-            }
-            const clustered = [];
-            const used = new Array(dataForMap.length).fill(false);
-
-            for (let i = 0; i < dataForMap.length; i++) {
-                if (used[i]) continue;
-                const group = [dataForMap[i]];
-                used[i] = true;
-                for (let j = i + 1; j < dataForMap.length; j++) {
-                    if (used[j]) continue;
-                    // 只聚合同类型、同日期的数据
-                    if (dataForMap[i].type !== dataForMap[j].type || dataForMap[i].date !== dataForMap[j].date) continue;
-                    // 计算两点距离（用GCJ-02坐标）
-                    const dist = turf.distance(
-                        [dataForMap[i].lng, dataForMap[i].lat],
-                        [dataForMap[j].lng, dataForMap[j].lat],
-                        { units: 'meters' }
-                    );
-                    if (dist <= clusterRadius) {
-                        group.push(dataForMap[j]);
-                        used[j] = true;
-                    }
-                }
-                // 计算聚合点的GCJ-02经纬度（平均），浓度取和
-                const avgLat = group.reduce((sum, p) => sum + p.lat, 0) / group.length;
-                const avgLng = group.reduce((sum, p) => sum + p.lng, 0) / group.length;
-                const sumConcentration = group.reduce((sum, p) => sum + p.concentration, 0);
-                // 转为WGS-84用于地图渲染
-                const [wgsLng, wgsLat] = outOfChina(avgLng, avgLat) ? [avgLng, avgLat] : gcj02ToWgs84(avgLng, avgLat);
-                clustered.push({
-                    ...group[0],
-                    lat: avgLat,
-                    lng: avgLng,
-                    wgsLat,
-                    wgsLng,
-                    concentration: sumConcentration,
-                    clusterCount: group.length
-                });
-            }
-
-            // 3. 以WGS-84经纬度为key分组
-            const groupByLocation = {};
-            clustered.forEach(item => {
-                const key = `${item.wgsLat},${item.wgsLng}`;
-                if (!groupByLocation[key]) groupByLocation[key] = [];
-                groupByLocation[key].push(item);
-            });
-
-            // 4. 移除旧图层和source
-            Object.keys(gasTypeColors).forEach(type => {
-                const layerId = `pollution-extrusion-${type}`;
-                const sourceId = `pollution-extrusion-${type}`;
-                if (appState.map.getLayer(layerId)) appState.map.removeLayer(layerId);
-                if (appState.map.getLayer(layerId + '-outline')) appState.map.removeLayer(layerId + '-outline');
-                if (appState.map.getSource(sourceId)) appState.map.removeSource(sourceId);
-            });
-
-            const typeOrder = ['SO2', 'NO2', 'PM2.5', 'PM10', 'CO', 'O3'];
-            const extrusionFeaturesByType = {};
-            typeOrder.forEach(type => extrusionFeaturesByType[type] = []);
-            const labelFeatures = [];
-
-            Object.values(groupByLocation).forEach(group => {
-                group.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
-                let base = 0;
-                group.forEach(item => {
-                    const height = item.concentration;
-                    const type = item.type;
-                    const scale = 2;
-                    // 用WGS-84坐标生成点
-                    const feature = turf.point([item.wgsLng, item.wgsLat], {
-                        ...item,
-                        base: base * scale,
-                        height: (base + height) * scale
-                    });
-                    extrusionFeaturesByType[type].push(feature);
-
-                    // label
-                    const gasTypeNames = {
-                        'SO2': '二氧化硫 (SO₂)',
-                        'NO2': '二氧化氮 (NO₂)',
-                        'PM2.5': '细颗粒物 (PM2.5)',
-                        'PM10': '可吸入颗粒物 (PM10)',
-                        'CO': '一氧化碳 (CO)',
-                        'O3': '臭氧 (O₃)'
-                    };
-                    labelFeatures.push({
-                        type: 'Feature',
-                        geometry: {
-                            type: 'Point',
-                            coordinates: [item.wgsLng, item.wgsLat]
-                        },
-                        properties: {
-                            id: item.id,
-                            lat: item.lat,
-                            lng: item.lng,
-                            wgsLat: item.wgsLat,
-                            wgsLng: item.wgsLng,
-                            date: item.date,
-                            type: item.type,
-                            typeName: gasTypeNames[item.type] || item.type,
-                            concentration: item.concentration,
-                            isSelected: appState.selectedPoints.some(p => p.id === item.id),
-                            labelOffset: (base + height) * scale
-                        }
-                    });
-
-                    base += height;
-                });
-            });
-
-            // 5. extrusion图层
-            Object.keys(gasTypeColors).forEach(type => {
-                const features = extrusionFeaturesByType[type].map(point => {
-                    const polygon = turf.buffer(point, 0.05, { units: 'kilometers', steps: 32 });
-                    polygon.properties = point.properties;
-                    return polygon;
-                });
-                if (features.length === 0) return;
-                const geojson = {
-                    type: 'FeatureCollection',
-                    features: features
-                };
-                const layerId = `pollution-extrusion-${type}`;
-                const sourceId = `pollution-extrusion-${type}`;
-                appState.map.addSource(sourceId, { type: 'geojson', data: geojson });
-                appState.map.off('click', layerId);
-
-                appState.map.addLayer({
-                    id: layerId,
-                    type: 'fill-extrusion',
-                    source: sourceId,
-                    paint: {
-                        'fill-extrusion-base': ['get', 'base'],
-                        'fill-extrusion-height': ['get', 'height'],
-                        'fill-extrusion-color': gasTypeColors[type] || 'rgba(54, 211, 153, 0.85)',
-                        'fill-extrusion-opacity': 0.92,
-                        'fill-extrusion-vertical-gradient': false
-                    }
-                });
-
-                appState.map.addLayer({
-                    id: layerId + '-outline',
-                    type: 'line',
-                    source: sourceId,
-                    paint: {
-                        'line-color': '#222',
-                        'line-width': 1.2,
-                        'line-opacity': 0.25
-                    }
-                });
-
-                appState.map.on('click', layerId, function (e) {
-                    if (e.features && e.features.length > 0) {
-                        const feature = e.features[0];
-                        const coords = turf.centerOfMass(feature).geometry.coordinates;
-                        appState.selectedPoints = [{
-                            id: feature.properties.id,
-                            lat: feature.properties.lat,
-                            lng: feature.properties.lng,
-                            date: feature.properties.date,
-                            type: feature.properties.type,
-                            concentration: feature.properties.concentration
-                        }];
-                        let filteredData = [];
-                        if (appState.selectedGasTypes.length > 0) {
-                            filteredData = appState.data.filter(item =>
-                                appState.selectedGasTypes.includes(item.type) &&
-                                item.date === appState.selectedDate
-                            );
-                        }
-                        updateDataTable(filteredData);
-                        showPopup({
-                            properties: {
-                                ...feature.properties,
-                                isSelected: true
-                            },
-                            geometry: { coordinates: coords }
-                        });
-                        appState.map.flyTo({
-                            center: coords,
-                            zoom: Math.max(appState.map.getZoom(), 14),
-                            speed: 1.2
-                        });
-                    }
-                });
-            });
-
-            // 6. label图层
-            if (appState.map.getLayer('pollution-label')) {
-                appState.map.removeLayer('pollution-label');
-            }
-            if (appState.map.getSource('pollution-label')) {
-                appState.map.removeSource('pollution-label');
-            }
-            appState.map.addSource('pollution-label', {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: labelFeatures
-                }
-            });
-            appState.map.addLayer({
-                id: 'pollution-label',
-                type: 'symbol',
-                source: 'pollution-label',
-                layout: {
-                    'icon-image': 'marker-15',
-                    'icon-size': 1.2,
-                    'icon-allow-overlap': true,
-                    'text-field': ['get', 'typeName'],
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': 12,
-                    'text-offset': [0, 1.2],
-                    'text-anchor': 'top',
-                    'text-optional': true,
-                    'visibility': 'visible'
-                },
-                paint: {
-                    'text-color': '#165DFF',
-                    'text-halo-color': '#fff',
-                    'text-halo-width': 1.5
-                },
-                minzoom: 0,
-                maxzoom: 13
-            });
-
-            appState.map.on('click', 'pollution-label', function (e) {
-                if (e.features && e.features.length > 0) {
-                    const feature = e.features[0];
-                    const coords = feature.geometry.coordinates;
-                    appState.map.flyTo({
-                        center: coords,
-                        zoom: Math.max(appState.map.getZoom(), 14),
-                        speed: 1.2
-                    });
-                    showPopup({
-                        properties: feature.properties,
-                        geometry: { coordinates: coords }
-                    });
-                }
-            });
-        }
-        // 显示信息弹窗
-        function showPopup(feature) {
-            const { lat, lng, date, type, concentration, isSelected, clusterCount } = feature.properties;
-
-            // 获取气体类型的中文名称
-            const gasTypeNames = {
-                'SO2': '二氧化硫 (SO₂)',
-                'NO2': '二氧化氮 (NO₂)',
-                'PM2.5': '细颗粒物 (PM2.5)',
-                'PM10': '可吸入颗粒物 (PM10)',
-                'CO': '一氧化碳 (CO)',
-                'O3': '臭氧 (O₃)'
-            };
-
-            const gasTypeName = gasTypeNames[type] || type;
-
-            // 检查是否为暗色模式
-            const isDark = document.documentElement.classList.contains('dark');
-
-            // 创建弹窗内容，适配暗色模式
-            const popupContent = `
-                      <div class="font-inter p-2 rounded-lg shadow-lg bg-white text-gray-800 ${isDark ? 'dark-popup' : ''}">
-                        <h3 class="font-semibold text-primary">监测点数据</h3>
-                        <div class="mt-2 space-y-1">
-                          <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-200">经纬度:</span>
-                           <span class="font-medium">
-                      ${typeof lng === 'number' && !isNaN(lng) ? lng.toFixed(7) : '-'},
-                      ${typeof lat === 'number' && !isNaN(lat) ? lat.toFixed(7) : '-'}
-</span>
-
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-200">日期:</span>
-                            <span class="font-medium">${date}</span>
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-200">污染物:</span>
-                            <span class="font-medium">${gasTypeName}</span>
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-200">浓度:</span>
-                            <span class="font-medium ${getConcentrationClass(concentration)}">${concentration.toFixed(1)} μg/m³</span>
-                          </div>
-                          <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-200">聚合点数量:</span>
-                            <span class="font-medium">${clusterCount ? clusterCount : 1}</span>
-                          </div>
-                          <div class="flex justify-between mt-2">
-                            <span class="text-xs text-gray-500">状态:</span>
-                            <span class="text-xs font-medium ${isSelected ? 'text-primary' : 'text-gray-500'}">${isSelected ? '已选中' : '未选中'}</span>
-                          </div>
-                        </div>
-                      </div>
-`;
-
-            // 创建并显示弹窗
-            if (appState.popup) {
-                appState.popup.remove();
-            }
-            appState.popup = new mapboxgl.Popup({ offset: 25 })
-                .setLngLat([lng, lat])
-                .setHTML(popupContent)
-                .addTo(appState.map);
-
-            // 适配暗色模式：为弹窗内容添加暗色样式
-            if (isDark) {
-                const popupEl = document.querySelector('.mapboxgl-popup-content');
-                if (popupEl) {
-                    popupEl.style.background = '#1e293b';
-                    popupEl.style.color = '#f1f5f9';
-                }
-            }
-        }
-        // 获取浓度对应的CSS类
-        function getConcentrationClass(concentration) {
-            if (concentration < 35) return 'text-green-600';
-            if (concentration < 75) return 'text-yellow-600';
-            return 'text-red-600';
-        }
-
-        // 更新统计信息
-        function updateStatistics(data) {
-            let filtered = data;
-            // 如果有选中点，只统计该点的历史数据
-            if (appState.selectedPoints && appState.selectedPoints.length === 1) {
-                const selected = appState.selectedPoints[0];
-                filtered = appState.data.filter(item =>
-                    item.id === selected.id ||
-                    (item.lat === selected.lat && item.lng === selected.lng && item.type === selected.type)
-                );
-            }
-            if (!filtered || filtered.length === 0) {
-                elements.stationCount.textContent = '0';
-                elements.avgConcentration.textContent = '0';
-                elements.maxConcentration.textContent = '0';
-                elements.minConcentration.textContent = '0';
-                return;
-            }
-
-            const concentrations = filtered.map(item => item.concentration);
-            const sum = concentrations.reduce((acc, val) => acc + val, 0);
-            const avg = sum / concentrations.length;
-            const max = Math.max(...concentrations);
-            const min = Math.min(...concentrations);
-
-            elements.stationCount.textContent = filtered.length;
-            elements.avgConcentration.textContent = avg.toFixed(1);
-            elements.maxConcentration.textContent = max.toFixed(1);
-            elements.minConcentration.textContent = min.toFixed(1);
-        }
-        // 更新数据表格
-        function updateDataTable(data) {
-            if (data.length === 0) {
-                elements.dataTableBody.innerHTML = `
-                                  <tr class="text-center">
-                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-500">暂无数据</td>
-                                  </tr>
-                                `;
-                return;
-            }
-
-            // 清空表格
-            elements.dataTableBody.innerHTML = '';
-
-            // 气体类型映射
-            const gasTypeNames = {
-                'SO2': '二氧化硫 (SO₂)',
-                'NO2': '二氧化氮 (NO₂)',
-                'PM2.5': '细颗粒物 (PM2.5)',
-                'PM10': '可吸入颗粒物 (PM10)',
-                'CO': '一氧化碳 (CO)',
-                'O3': '臭氧 (O₃)'
-            };
-
-            // 按浓度排序
-            const sortedData = [...data].sort((a, b) => b.concentration - a.concentration);
-
-            // 填充表格
-            sortedData.forEach(item => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 dark:bg-gray-700 dark:bg-gray-700 transition-colors';
-
-                // 检查是否选中
-                const isSelected = appState.selectedPoints.some(p => p.id === item.id);
-
-                row.innerHTML = `
-                          <td class="px-3 py-2 whitespace-nowrap">
-                            <div class="flex items-center">
-                              <div class="w-3 h-3 rounded-full ${getConcentrationColor(item.concentration)} mr-2"></div>
-                              ${item.id.startsWith('sample') ? '示例点' : item.id.startsWith('import') ? '导入点' : item.id.startsWith('manual') ? '手动点' : '监测点'}
-                            </div>
-                          </td>
-                          <td class="px-3 py-2 whitespace-nowrap">${item.date}</td>
-                          <td class="px-3 py-2 whitespace-nowrap">${gasTypeNames[item.type] || item.type}</td>
-                          <td class="px-3 py-2 whitespace-nowrap font-medium ${getConcentrationClass(item.concentration)}">
-                            ${item.concentration.toFixed(1)} μg/m³
-                            ${isSelected ? '<span class="ml-1 text-xs text-primary">(选中)</span>' : ''}
-                          </td>
-                        `;
-
-                // 新增：点击表格行选中并弹窗
-                row.addEventListener('click', () => {
-                    appState.selectedPoints = [{
-                        id: item.id,
-                        lat: item.lat,
-                        lng: item.lng,
-                        date: item.date,
-                        type: item.type,
-                        concentration: item.concentration
-                    }];
-                    applyFilters(); // 只调用applyFilters，弹窗逻辑移到applyFilters里
-                });
-
-
-                elements.dataTableBody.appendChild(row);
-            });
-
-        }
-
-        // 获取浓度对应的颜色
-        function getConcentrationColor(concentration) {
-            if (concentration < 35) return 'bg-green-500';
-            if (concentration < 75) return 'bg-yellow-500';
-            return 'bg-red-500';
-        }
-
-        // 更新图表
-        function updateChart(data) {
-            if (!appState.concentrationChart) return;
-
-            // 获取统计起止日期
-            const statStartDate = document.getElementById('statStartDate').value;
-            const statEndDate = document.getElementById('statEndDate').value;
-
-            // 按日期分组计算平均值
-            // 生成完整日期列表
-            function getDateRange(start, end) {
-                const result = [];
-                let dt = new Date(start);
-                const endDt = new Date(end);
-                while (dt <= endDt) {
-                    result.push(dt.toISOString().slice(0, 10));
-                    dt.setDate(dt.getDate() + 1);
-                }
-                return result;
-            }
-
-            const allDates = getDateRange(statStartDate, statEndDate);
-
-            // 按日期分组
-            const dateGroups = {};
-            appState.data.forEach(item => {
-                if (appState.selectedGasTypes && appState.selectedGasTypes.includes(item.type)) {
-                    if (item.date >= statStartDate && item.date <= statEndDate) {
-                        if (!dateGroups[item.date]) {
-                            dateGroups[item.date] = [];
-                        }
-                        dateGroups[item.date].push(item.concentration);
-                    }
-                }
-            });
-
-            // 计算每天的平均值，补全无数据天
-            const avgConcentrations = allDates.map(date => {
-                const values = dateGroups[date];
-                if (values && values.length > 0) {
-                    return values.reduce((acc, val) => acc + val, 0) / values.length;
-                } else {
-                    return null; // 无数据天断线
-                }
-            });
-
-            // 更新图表数据
-            appState.concentrationChart.data.labels = allDates;
-            appState.concentrationChart.data.datasets[0].data = avgConcentrations;
-            appState.concentrationChart.update();
-            predictNext3Days(data);
-        }
-        // 删除选中数据
-        function deleteSelectedData() {
-            if (appState.selectedPoints.length === 0) {
-                showNotification('提示', '请先选择要删除的数据点', 'info');
-                return;
-            }
-
-            // 从数据中移除选中的点
-            const selectedIds = appState.selectedPoints.map(p => p.id);
-            appState.data = appState.data.filter(item => !selectedIds.includes(item.id));
-
-            // 清空选中状态
-            appState.selectedPoints = [];
-
-            // 应用筛选以更新地图
-            applyFilters();
-
-            showNotification('成功', `已删除 ${selectedIds.length} 个数据点`, 'success');
-        }
-
-        // 删除所有数据
-        function deleteAllData() {
-            if (appState.data.length === 0) {
-                showNotification('提示', '没有数据可删除', 'info');
-                return;
-            }
-
-            if (confirm('确定要清空所有数据吗？此操作不可撤销。')) {
-                appState.data = [];
-                appState.selectedPoints = [];
-
-                // 应用筛选以更新地图
-                applyFilters();
-                // 删除弹窗
-                if (appState.popup) {
-                    appState.popup.remove();
-                    appState.popup = null;
-                }
-                showNotification('成功', '所有数据已清空', 'success');
-            }
-        }
-
-        // 定位我的位置
-        function locateMe() {
-            if (!navigator.geolocation) {
-                showNotification('错误', '您的浏览器不支持地理位置功能', 'error');
-                return;
-            }
-
-            showLoading(true);
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-
-                    // 移动地图到当前位置
-                    appState.map.flyTo({
-                        center: [longitude, latitude],
-                        zoom: 12,
-                        speed: 0.8
-                    });
-
-                    // 移除旧的“我的位置”marker
-                    if (appState.myLocationMarker) {
-                        appState.myLocationMarker.remove();
-                    }
-
-                    // 创建新的marker
-                    const el = document.createElement('div');
-                    el.className = 'my-location-marker';
-                    el.style.width = '28px';
-                    el.style.height = '28px';
-                    el.style.background = 'rgba(22,93,255,0.15)';
-                    el.style.border = '2px solid #165DFF';
-                    el.style.borderRadius = '50%';
-                    el.style.boxShadow = '0 0 8px #165DFF55';
-                    el.style.display = 'flex';
-                    el.style.alignItems = 'center';
-                    el.style.justifyContent = 'center';
-
-                    // 内部小圆点
-                    const inner = document.createElement('div');
-                    inner.style.width = '10px';
-                    inner.style.height = '10px';
-                    inner.style.background = '#165DFF';
-                    inner.style.borderRadius = '50%';
-                    el.appendChild(inner);
-
-                    // 创建marker并添加到地图
-                    appState.myLocationMarker = new mapboxgl.Marker(el)
-                        .setLngLat([longitude, latitude])
-                        .setPopup(
-                            new mapboxgl.Popup({ offset: 18 })
-                                .setHTML(
-                                    `<div style="font-size:14px;">
-                                    <strong>我的位置</strong><br>
-                                    经度: ${longitude.toFixed(7)}<br>
-                                    纬度: ${latitude.toFixed(7)}
-                                </div>`
-                                )
-                        )
-
-                        .addTo(appState.map);
-
-                    showNotification('成功', '已定位到您的当前位置', 'success');
-                    showLoading(false);
-                },
-                (error) => {
-                    console.error('Geolocation error:', error);
-                    showNotification('错误', '无法获取您的位置，请确保已授予位置权限', 'error');
-                    showLoading(false);
-                }
-            );
-        }
-
-
-        // 重置地图视图
-        function resetMapView() {
-            appState.map.flyTo({
-                center: [116.4074, 39.9042], // 北京中心
-                zoom: 10,
-                speed: 0.8
-            });
-        }
-
-        // 切换全屏
-        function toggleFullscreen() {
-            const mapContainer = document.getElementById('mapContainer');
-
-            if (!document.fullscreenElement) {
-                mapContainer.requestFullscreen().catch(err => {
-                    showNotification('错误', `全屏请求失败: ${err.message}`, 'error');
-                });
-            } else {
-                document.exitFullscreen();
-            }
-        }
-
-        // 下载地图
-        function downloadMap() {
-            showNotification('提示', '地图导出功能正在开发中', 'info');
-        }
-
-        // 处理手动数据提交
-        function handleManualDataSubmit(event) {
-            event.preventDefault();
-
-            // 获取表单数据
-            let lat = parseFloat(document.getElementById('manualLat').value);
-            let lng = parseFloat(document.getElementById('manualLng').value);
-            const date = document.getElementById('manualDate').value;
-            const type = document.getElementById('manualGasType').value;
-            const concentration = parseFloat(document.getElementById('manualConcentration').value);
-
-            // 在手动数据提交前，自动将WGS-84转为GCJ-02
-            if (!outOfChina(lng, lat)) {
-                [lng, lat] = wgs84ToGcj02(lng, lat);
-            }
-
-
-            // 验证数据
-            if (isNaN(lat) || isNaN(lng) || !date || !type || isNaN(concentration)) {
-                showNotification('错误', '请填写所有必填字段', 'error');
-                return;
-            }
-
-            // 创建新数据点
-            const newDataPoint = {
-                id: `manual_${Math.random().toString(36).substr(2, 9)}`,
-                lat,
-                lng,
-                date,
-                type,
-                concentration
-            };
-            // 添加到数据集中
-            appState.data.push(newDataPoint);
-            // 自动切换筛选条件到新数据
-            elements.dateFilter.value = date;
-            appState.selectedDate = date;
-
-            // 只选中新数据的类型
-            for (let i = 0; i < elements.gasType.options.length; i++) {
-                elements.gasType.options[i].selected = (elements.gasType.options[i].value === type);
-            }
-            appState.selectedGasTypes = [type];
-
-            updateDateFilterOptions();
-            applyFilters();
-            // 清空表单
-            elements.manualDataForm.reset();
-
-            // 设置日期为今天
-            const today = new Date();
-            const formattedDate = today.toISOString().split('T')[0];
-            document.getElementById('manualDate').value = formattedDate;
-
-            showNotification('成功', '数据点已添加', 'success');
-        }
-        // 刷新数据
-        function refreshData() {
-            applyFilters();
-            showNotification('成功', '数据已刷新', 'success');
-        }
-
-        // 显示帮助模态框
-        function showHelpModal() {
-            elements.helpModal.classList.remove('hidden');
-        }
-
-        // 隐藏帮助模态框
-        function hideHelpModal() {
-            elements.helpModal.classList.add('hidden');
-        }
-
-        // 切换主题
-        function toggleTheme() {
-            // 判断当前是否为暗色模式
-            const isDark = document.documentElement.classList.contains('dark');
-            if (isDark) {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme-mode', 'light');
-                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-moon text-gray-600 dark:text-gray-200"></i>';
-                if (appState.map) {
-                    appState.map.setStyle('mapbox://styles/mapbox/light-v10');
-                    appState.map.once('style.load', function () {
-                        try { if (appState.navControl) appState.map.removeControl(appState.navControl); } catch (e) { }
-                        try { if (appState.scaleControl) appState.map.removeControl(appState.scaleControl); } catch (e) { }
-                        appState.navControl = new mapboxgl.NavigationControl();
-                        appState.scaleControl = new mapboxgl.ScaleControl({
-                            maxWidth: 80,
-                            unit: 'metric'
-                        });
-                        appState.map.addControl(appState.navControl, 'top-right');
-                        appState.map.addControl(appState.scaleControl);
-                        applyFilters();
-                    });
-                }
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme-mode', 'dark');
-                elements.toggleTheme.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
-                if (appState.map) {
-                    appState.map.setStyle('mapbox://styles/mapbox/dark-v10');
-                    appState.map.once('style.load', function () {
-                        try { if (appState.navControl) appState.map.removeControl(appState.navControl); } catch (e) { }
-                        try { if (appState.scaleControl) appState.map.removeControl(appState.scaleControl); } catch (e) { }
-                        appState.navControl = new mapboxgl.NavigationControl();
-                        appState.scaleControl = new mapboxgl.ScaleControl({
-                            maxWidth: 80,
-                            unit: 'metric'
-                        });
-                        appState.map.addControl(appState.navControl, 'top-right');
-                        appState.map.addControl(appState.scaleControl);
-                        applyFilters();
-                    });
-                }
-            }
-        }
-        // 显示通知
-        function showNotification(title, message, type = 'info') {
-            // 设置通知内容
-            elements.notificationTitle.textContent = title;
-            elements.notificationMessage.textContent = message;
-
-            // 设置图标和颜色
-            let iconClass = 'fa-info-circle text-blue-500';
-            let bgColor = 'bg-blue-50';
-
-            if (type === 'success') {
-                iconClass = 'fa-check-circle text-green-500';
-                bgColor = 'bg-green-50';
-            } else if (type === 'error') {
-                iconClass = 'fa-exclamation-circle text-red-500';
-                bgColor = 'bg-red-50';
-            } else if (type === 'warning') {
-                iconClass = 'fa-exclamation-triangle text-yellow-500';
-                bgColor = 'bg-yellow-50';
-            }
-
-            elements.notificationIcon.className = `fa ${iconClass}`;
-            elements.notification.className = elements.notification.className.replace(/bg-\w+-\d+/, bgColor);
-            // 显示通知
-            elements.notification.classList.remove('translate-y-20', 'opacity-0');
-            // 3秒后自动隐藏
-            setTimeout(hideNotification, 3000);
-        }
-        // 隐藏通知
-        function hideNotification() {
-            elements.notification.classList.add('translate-y-20', 'opacity-0');
-        }
-        // 显示/隐藏加载中
-        function showLoading(show) {
-            if (show) {
-                elements.loadingOverlay.classList.remove('hidden');
-            } else {
-                elements.loadingOverlay.classList.add('hidden');
-            }
-        }
-        // 主题切换：自动跟随系统，手动切换优先
-        (function () {
-            const themeKey = 'theme-mode';
-            // 应用主题
-            function applyTheme(mode) {
-                if (mode === 'dark') {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            }
-            // 获取当前主题（localStorage > 系统）
-            function getCurrentTheme() {
-                const saved = localStorage.getItem(themeKey);
-                if (saved === 'dark' || saved === 'light') return saved;
-                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
-            // 初始化主题
-            function initTheme() {
-                applyTheme(getCurrentTheme());
-            }
-
-            // 监听系统主题变化
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-                if (!localStorage.getItem(themeKey)) {
-                    applyTheme(e.matches ? 'dark' : 'light');
-                }
-            });
-
-            // 页面加载时应用主题
-            initTheme();
-
-            // 绑定手动切换按钮
-            document.addEventListener('DOMContentLoaded', function () {
-                const drawer = document.getElementById('statsDrawer');
-                const btn = document.getElementById('toggleStatsDrawer');
-                const legend = document.getElementById('pollutantLegend');
-                let open = false;
-
-                function updateDrawer() {
-                    if (open) {
-                        drawer.classList.remove('translate-x-full');
-                        // 展开时隐藏图例
-                        if (legend) legend.style.display = 'none';
-                    } else {
-                        drawer.classList.add('translate-x-full');
-                        // 收起时显示图例
-                        if (legend) legend.style.display = '';
-                    }
-                }
-                btn.addEventListener('click', function () {
-                    open = !open;
-                    updateDrawer();
-                });
-
-                window.addEventListener('resize', updateDrawer);
-                updateDrawer();
-            });
-        })();
-        // 页面加载完成后初始化应用
-        document.addEventListener('DOMContentLoaded', initApp);
-        function predictNext3Days(data) {
-            // 仅用选中点的历史数据
-            let filtered = data;
-            if (appState.selectedPoints && appState.selectedPoints.length === 1) {
-                const selected = appState.selectedPoints[0];
-                filtered = appState.data.filter(item =>
-                    item.id === selected.id ||
-                    (item.lat === selected.lat && item.lng === selected.lng && item.type === selected.type)
-                );
-            }
-            if (!filtered || filtered.length < 3) {
-                document.getElementById('predictionResult').textContent = '数据不足，无法预测';
-                return;
-            }
-            // 按日期分组取平均
-            const dateMap = {};
-            filtered.forEach(item => {
-                if (!dateMap[item.date]) dateMap[item.date] = [];
-                dateMap[item.date].push(item.concentration);
-            });
-            const dates = Object.keys(dateMap).sort();
-            let avgArr = dates.map(d => ({
-                date: d,
-                value: dateMap[d].reduce((a, b) => a + b, 0) / dateMap[d].length
-            }));
-
-            // 简单滑动平均去噪
-            avgArr = avgArr.map((v, i, arr) => {
-                if (i === 0 || i === arr.length - 1) return v;
-                return { date: v.date, value: (arr[i - 1].value + v.value + arr[i + 1].value) / 3 };
-            });
-
-            const x = avgArr.map((v, i) => i);
-            const y = avgArr.map(v => v.value);
-
-            // 自动选择1~3阶多项式，最小化残差
-            function polyFit(x, y, degree) {
-                // 构造范德蒙德矩阵
-                const X = x.map(xi => Array.from({ length: degree + 1 }, (_, k) => Math.pow(xi, k)));
-                // 最小二乘法 X^T X a = X^T y
-                const XT = X[0].map((_, col) => X.map(row => row[col]));
-                const XTX = XT.map(row => XT.map((_, col) => row.reduce((sum, v, i) => sum + v * X[i][col], 0)));
-                const XTy = XT.map(row => row.reduce((sum, v, i) => sum + v * y[i], 0));
-                // 高斯消元解线性方程组
-                function gauss(A, b) {
-                    const n = A.length;
-                    for (let i = 0; i < n; i++) {
-                        // 主元
-                        let maxRow = i;
-                        for (let k = i + 1; k < n; k++) if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
-                        [A[i], A[maxRow]] = [A[maxRow], A[i]];
-                        [b[i], b[maxRow]] = [b[maxRow], b[i]];
-                        for (let k = i + 1; k < n; k++) {
-                            const c = A[k][i] / A[i][i];
-                            for (let j = i; j < n; j++) A[k][j] -= c * A[i][j];
-                            b[k] -= c * b[i];
-                        }
-                    }
-                    const x = Array(n).fill(0);
-                    for (let i = n - 1; i >= 0; i--) {
-                        x[i] = b[i] / A[i][i];
-                        for (let k = i - 1; k >= 0; k--) b[k] -= A[k][i] * x[i];
-                    }
-                    return x;
-                }
-                const coef = gauss(XTX, XTy);
-                return coef;
-            }
-            function polyPredict(coef, xi) {
-                return coef.reduce((sum, c, k) => sum + c * Math.pow(xi, k), 0);
-            }
-            // 选择最优阶数
-            let bestDegree = 1, minErr = Infinity, bestCoef = [];
-            for (let d = 1; d <= Math.min(3, x.length - 1); d++) {
-                const coef = polyFit(x, y, d);
-                const yFit = x.map((xi, i) => polyPredict(coef, xi));
-                const err = y.reduce((sum, yi, i) => sum + Math.pow(yi - yFit[i], 2), 0);
-                if (err < minErr) {
-                    minErr = err;
-                    bestDegree = d;
-                    bestCoef = coef;
-                }
-            }
-            // 预测未来3天
-            const lastIdx = x.length - 1;
-            const pred = [1, 2, 3].map(i => polyPredict(bestCoef, lastIdx + i));
-            const lastDate = new Date(dates[dates.length - 1]);
-            const predDates = [1, 2, 3].map(i => {
-                const d = new Date(lastDate);
-                d.setDate(d.getDate() + i);
-                return d.toISOString().slice(0, 10);
-            });
-            document.getElementById('predictionResult').innerHTML =
-                predDates.map((d, i) =>
-                    `<div>${d}：<span class="font-bold text-primary">${pred[i].toFixed(1)}</span> μg/m³</div>`
-                ).join('');
-        }
-        // 统计区抽屉切换逻辑
-        document.addEventListener('DOMContentLoaded', function () {
-            const drawer = document.getElementById('statsDrawer');
-            const btn = document.getElementById('toggleStatsDrawer');
-            let open = false;
-
-            function updateDrawer() {
-                if (open) {
-                    drawer.classList.remove('translate-x-full');
-                } else {
-                    drawer.classList.add('translate-x-full');
-                }
-            }
-            btn.addEventListener('click', function () {
-                open = !open;
-                updateDrawer();
-            });
-
-            window.addEventListener('resize', updateDrawer);
-            updateDrawer();
+    <button class="btn" id="startBtn">开 始 演 化</button>
+  </div>
+  <div id="overView" style="display:none">
+    <div class="over-title">体 爆 魂 销</div>
+    <div id="result" class="fadeIn"></div>
+    <button class="btn" id="againBtn">再 来 一 次</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const TAU = Math.PI * 2;
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+const rand  = (a,b)=> a + Math.random()*(b-a);
+const lerp  = (a,b,t)=> a + (b-a)*t;
+
+function hexToRGB(hex){
+  const n = parseInt(hex.slice(1),16);
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+function rgba(hex,a){
+  const n = parseInt(hex.slice(1),16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  if(amt>=0){ r+=(255-r)*amt; g+=(255-g)*amt; b+=(255-b)*amt; }
+  else { r*=(1+amt); g*=(1+amt); b*=(1+amt); }
+  r=clamp(r,0,255)|0; g=clamp(g,0,255)|0; b=clamp(b,0,255)|0;
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const STAGES = [
+  { name:'微陨石',     min:0,        type:'rock'      },
+  { name:'小行星',     min:400,      type:'rock'      },
+  { name:'矮行星',     min:1600,     type:'rock'      },
+  { name:'岩石行星',   min:6000,     type:'planet'    },
+  { name:'超级地球',   min:20000,    type:'planet'    },
+  { name:'气态巨行星', min:70000,    type:'gas'       },
+  { name:'褐矮星',     min:200000,   type:'brown'     },
+  { name:'恒星',       min:600000,   type:'star'      },
+  { name:'蓝巨星',     min:1800000,  type:'star'      },
+  { name:'中子星',     min:5000000,  type:'neutron'   },
+  { name:'黑洞',       min:15000000, type:'blackhole' },
+];
+
+const CATALOG = [
+  [
+    { label:'碳质球粒陨石', color:'#3e3730', glow:'#241e18', tex:'carbon' },
+    { label:'铁镍陨石',     color:'#6a6258', glow:'#3a3530', tex:'metal'  },
+    { label:'石铁陨石',     color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
+    { label:'橄榄陨铁',     color:'#8a7a62', glow:'#5a5040', tex:'metal'  },
+  ],
+  [
+    { label:'智神星',   color:'#5a544a', glow:'#2a2520', tex:'carbon' },
+    { label:'灶神星',   color:'#8a7a62', glow:'#5a5040', tex:'stony'  },
+    { label:'婚神星',   color:'#9a8e78', glow:'#6a6050', tex:'metal'  },
+    { label:'灵神星',   color:'#a89c88', glow:'#706858', tex:'metal'  },
+    { label:'爱神星',   color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
+    { label:'许癸厄亚', color:'#8a98a8', glow:'#4a5868', tex:'icy'    },
+    { label:'阿波菲斯', color:'#6a5a4a', glow:'#3a2a1a', tex:'carbon' },
+  ],
+  [
+    { label:'冥王星', color:'#b09070', glow:'#6a5040', tex:'cratered' },
+    { label:'谷神星', color:'#888078', glow:'#4a4440', tex:'cratered' },
+    { label:'阋神星', color:'#c8c8c8', glow:'#808080', tex:'icy'      },
+    { label:'妊神星', color:'#a8b0b8', glow:'#606870', tex:'icy'      },
+    { label:'鸟神星', color:'#a09080', glow:'#605040', tex:'cratered' },
+    { label:'创神星', color:'#9a9a9a', glow:'#505050', tex:'icy'      },
+    { label:'塞德娜', color:'#c05840', glow:'#702818', tex:'cratered' },
+  ],
+  [
+    { label:'水星',      color:'#8a8078', glow:'#4a4440', tex:'mercury' },
+    { label:'金星',      color:'#d8b878', glow:'#8a7030', tex:'venus'   },
+    { label:'地球',      color:'#4a80c0', glow:'#2a5080', tex:'earth'   },
+    { label:'火星',      color:'#c06040', glow:'#702818', tex:'mars'    },
+    { label:'开普勒-186f', color:'#a85840', glow:'#5a2818', tex:'venus' },
+    { label:'开普勒-442b', color:'#4a8868', glow:'#1a4838', tex:'earth' },
+    { label:'TRAPPIST-1e', color:'#5a98b8', glow:'#2a5878', tex:'earth' },
+    { label:'比邻星b',     color:'#c87858', glow:'#683020', tex:'mars'  },
+  ],
+  [
+    { label:'开普勒-22b',  color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
+    { label:'格利泽581g',  color:'#4a8868', glow:'#1a4838', tex:'earth'   },
+    { label:'开普勒-452b', color:'#5a8878', glow:'#284840', tex:'earth'   },
+    { label:'开普勒-69c',  color:'#a85840', glow:'#5a2818', tex:'venus'   },
+    { label:'开普勒-10c',  color:'#8a7868', glow:'#4a4030', tex:'mercury' },
+    { label:'HD 40307g',   color:'#3a6a88', glow:'#1a3858', tex:'earth'   },
+    { label:'开普勒-20b',  color:'#a06848', glow:'#603020', tex:'venus'   },
+  ],
+  [
+    { label:'木星',        color:'#c8a878', glow:'#7a5838', tex:'jupiter'  },
+    { label:'土星',        color:'#d8c088', glow:'#8a7048', tex:'saturn'   },
+    { label:'天王星',      color:'#88c8d8', glow:'#408090', tex:'iceGiant' },
+    { label:'海王星',      color:'#4868c8', glow:'#203878', tex:'iceGiant' },
+    { label:'HD 189733b',  color:'#3a68a8', glow:'#1a3868', tex:'iceGiant' },
+    { label:'WASP-12b',    color:'#a06848', glow:'#603020', tex:'jupiter'  },
+    { label:'格利泽436b',  color:'#3a7898', glow:'#1a3858', tex:'iceGiant' },
+    { label:'北落师门b',   color:'#806050', glow:'#402818', tex:'jupiter'  },
+  ],
+  [
+    { label:'L型褐矮星', color:'#c05828', glow:'#802010', tex:'brownDwarf' },
+    { label:'T型褐矮星', color:'#804838', glow:'#401818', tex:'brownDwarf' },
+    { label:'Y型褐矮星', color:'#604838', glow:'#301818', tex:'brownDwarf' },
+    { label:'WISE 0855', color:'#705848', glow:'#302018', tex:'brownDwarf' },
+  ],
+  [
+    { label:'比邻星',      color:'#d05030', glow:'#a02810', tex:'starM' },
+    { label:'巴纳德星',    color:'#c04828', glow:'#902010', tex:'starM' },
+    { label:'太阳',        color:'#f8d850', glow:'#c09010', tex:'starG' },
+    { label:'南门二A',     color:'#f8d870', glow:'#c09020', tex:'starG' },
+    { label:'天苑四',      color:'#e89040', glow:'#b06010', tex:'starK' },
+    { label:'鲸鱼座τ星',   color:'#e89050', glow:'#b06020', tex:'starK' },
+  ],
+  [
+    { label:'天狼星A', color:'#c8e0f8', glow:'#6090c8', tex:'starA' },
+    { label:'织女星',  color:'#d8e8ff', glow:'#70a0e0', tex:'starA' },
+    { label:'参宿七',  color:'#70a8f8', glow:'#2050c0', tex:'starO' },
+    { label:'天津四',  color:'#88b8ff', glow:'#3060c0', tex:'starO' },
+    { label:'手枪星',  color:'#6098e8', glow:'#1040b0', tex:'starO' },
+  ],
+  [
+    { label:'蟹状脉冲星',   color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
+    { label:'船帆座脉冲星', color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
+    { label:'SGR 1806-20',  color:'#e8e0ff', glow:'#a080ff', tex:'neutron' },
+  ],
+  [
+    { label:'天鹅座X-1', color:'#050510', glow:'#ff9a3c', tex:'blackhole' },
+    { label:'人马座A*',  color:'#050510', glow:'#ff7a2c', tex:'blackhole' },
+    { label:'M87*',      color:'#050510', glow:'#ffaa4c', tex:'blackhole' },
+    { label:'3C 273',    color:'#050510', glow:'#ff9a5c', tex:'blackhole' },
+  ],
+];
+
+function stageOf(m){
+  let s = 0;
+  for (let i=0;i<STAGES.length;i++) if (m >= STAGES[i].min) s = i;
+  return s;
+}
+function radiusOf(m){ return 18 * Math.cbrt(m/100); }
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d', { alpha:false });
+let W=0, H=0, DPR=1;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width  = Math.floor(W*DPR);
+  cv.height = Math.floor(H*DPR);
+  cv.style.width  = W+'px';
+  cv.style.height = H+'px';
+  buildStars();
+  buildNebula();
+  // 屏幕尺寸变化时，确保指针目标仍在画面内
+  if (game && game.mouse){
+    game.mouse.sx = clamp(game.mouse.sx, 0, W);
+    game.mouse.sy = clamp(game.mouse.sy, 0, H);
+  }
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', ()=> setTimeout(resize, 120));
+
+let STARS = [];
+function buildStars(){
+  STARS = [];
+  const n = Math.round(clamp(W*H/2600, 260, 550));
+  for (let i=0;i<n;i++){
+    STARS.push({
+      x: Math.random()*2600, y: Math.random()*2600,
+      p: 0.02 + Math.random()*0.16,
+      s: Math.random()<0.8 ? rand(0.8,1.6) : rand(1.8, 2.8),
+      a: 0.2 + Math.random()*0.75,
+      c: Math.random()<0.2 ? '#a9c8ff' : (Math.random()<0.4 ? '#ffd8a8' : '#ffffff'),
+      tw: Math.random()*TAU
+    });
+  }
+}
+let NEBULAS = [];
+function buildNebula(){
+  const palette = [
+    ['rgba(70,40,140,0.30)','rgba(20,10,60,0)'],
+    ['rgba(20,60,130,0.26)','rgba(5,15,45,0)'],
+    ['rgba(120,30,90,0.20)','rgba(40,5,30,0)'],
+  ];
+  NEBULAS = [];
+  for (let i=0;i<3;i++){
+    NEBULAS.push({
+      x: Math.random()*2400, y: Math.random()*2400,
+      r: rand(400, 800),
+      p: 0.03 + i*0.012,
+      c1: palette[i%3][0], c2: palette[i%3][1],
+    });
+  }
+}
+
+const glowCache = new Map();
+function getGlow(color, size){
+  const key = color + size;
+  let c = glowCache.get(key);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = c.height = size*2;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(size,size,0,size,size,size);
+  grad.addColorStop(0.00, rgba(color, 0.95));
+  grad.addColorStop(0.18, rgba(color, 0.55));
+  grad.addColorStop(0.42, rgba(color, 0.18));
+  grad.addColorStop(1.00, rgba(color, 0));
+  g.fillStyle = grad;
+  g.fillRect(0,0,size*2,size*2);
+  glowCache.set(key, c);
+  return c;
+}
+
+const TEX = 256;
+const texCache = new Map();
+let lightCanvas = null;
+
+function getLight(){
+  if (lightCanvas) return lightCanvas;
+  const S = TEX;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const cx=S/2, cy=S/2;
+  const grad = g.createRadialGradient(cx-S*0.16, cy-S*0.16, S*0.02, cx, cy, S*0.5);
+  grad.addColorStop(0.00,'rgba(255,255,255,1)');
+  grad.addColorStop(0.30,'rgba(238,240,248,1)');
+  grad.addColorStop(0.62,'rgba(150,158,185,1)');
+  grad.addColorStop(0.86,'rgba(45,50,75,1)');
+  grad.addColorStop(1.00,'rgba(8,10,20,1)');
+  g.fillStyle = grad;
+  g.beginPath(); g.arc(cx,cy,S*0.5,0,TAU); g.fill();
+  lightCanvas = c;
+  return c;
+}
+
+function paintTexture(g, S, texType, baseColor, seed){
+  const r2 = mulberry32(seed);
+  const rnd = () => r2();
+  const randR = (a,b) => a + r2()*(b-a);
+
+  g.fillStyle = baseColor;
+  g.fillRect(0, 0, S, S);
+
+  function wrapDraw(x, margin, fn){
+    fn(x);
+    if (x < margin) fn(x + S);
+    else if (x > S - margin) fn(x - S);
+  }
+
+  function addNoise(count, intensity){
+    for (let i=0;i<count;i++){
+      const x = rnd()*S, y = rnd()*S, r = randR(0.5, 2.5);
+      const v = (rnd()-0.5)*2*intensity;
+      g.fillStyle = rgba(shade(baseColor, v), 0.5);
+      wrapDraw(x, r*2, (xx)=>{
+        g.beginPath(); g.arc(xx, y, r, 0, TAU); g.fill();
+      });
+    }
+  }
+
+  function addCraters(count, minR, maxR){
+    for (let i=0;i<count;i++){
+      const x = rnd()*S, y = rnd()*S;
+      const cr = randR(minR, maxR);
+      wrapDraw(x, cr*1.5, (xx)=>{
+        const grad = g.createRadialGradient(xx, y, 0, xx, y, cr);
+        grad.addColorStop(0, rgba(shade(baseColor, -0.35), 0.75));
+        grad.addColorStop(0.7, rgba(shade(baseColor, -0.15), 0.5));
+        grad.addColorStop(1, rgba(shade(baseColor, -0.1), 0));
+        g.fillStyle = grad;
+        g.beginPath(); g.arc(xx, y, cr, 0, TAU); g.fill();
+        g.strokeStyle = rgba(shade(baseColor, 0.35), 0.3);
+        g.lineWidth = Math.max(0.6, cr*0.12);
+        g.beginPath();
+        g.arc(xx, y, cr*0.95, -0.2, Math.PI + 0.2);
+        g.stroke();
+      });
+    }
+  }
+
+  function addBands(colors, waveAmp, bandCount){
+    for (let i=0;i<bandCount;i++){
+      const y0 = (i / bandCount) * S;
+      const bh = S / bandCount * randR(0.7, 1.4);
+      const c = colors[Math.floor(rnd()*colors.length)];
+      const freq = Math.max(1, Math.round(randR(1, 3)));
+      const phase = rnd()*TAU;
+      const freq2 = Math.max(1, Math.round(randR(1, 3)));
+      const phase2 = rnd()*TAU;
+      g.fillStyle = c;
+      g.beginPath();
+      for (let x=0; x<=S; x+=4){
+        const y = y0 + Math.sin(x/S*TAU*freq + phase)*waveAmp;
+        if (x===0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      for (let x=S; x>=0; x-=4){
+        const y = y0 + bh + Math.sin(x/S*TAU*freq2 + phase2)*waveAmp;
+        g.lineTo(x, y);
+      }
+      g.closePath();
+      g.fill();
+    }
+  }
+
+  function addContinents(colors, count, minSize, maxSize){
+    for (let i=0;i<count;i++){
+      const cx = rnd()*S, cy = rnd()*S;
+      const size = randR(minSize, maxSize);
+      const c = colors[Math.floor(rnd()*colors.length)];
+      const blobs = 3 + Math.floor(rnd()*4);
+      const blobList = [];
+      for (let b=0;b<blobs;b++){
+        blobList.push({
+          dx: (rnd()-0.5)*size*1.4,
+          dy: (rnd()-0.5)*size*1.4,
+          r: size*randR(0.35, 0.75),
         });
-        document.addEventListener('DOMContentLoaded', function () {
-            const legendBtn = document.getElementById('toggleLegendBtn');
-            const legendContent = document.getElementById('legendContent');
-            const legendIcon = document.getElementById('toggleLegendIcon');
-            let legendCollapsed = false;
+      }
+      wrapDraw(cx, size*1.5, (xx)=>{
+        g.fillStyle = c;
+        g.beginPath();
+        for (const bl of blobList){
+          g.moveTo(xx + bl.dx + bl.r, cy + bl.dy);
+          g.arc(xx + bl.dx, cy + bl.dy, bl.r, 0, TAU);
+        }
+        g.fill();
+      });
+    }
+  }
 
-            if (legendBtn && legendContent && legendIcon) {
-                legendBtn.addEventListener('click', function () {
-                    legendCollapsed = !legendCollapsed;
-                    if (legendCollapsed) {
-                        legendContent.style.display = 'none';
-                        legendIcon.classList.remove('fa-chevron-down');
-                        legendIcon.classList.add('fa-chevron-up');
-                    } else {
-                        legendContent.style.display = '';
-                        legendIcon.classList.remove('fa-chevron-up');
-                        legendIcon.classList.add('fa-chevron-down');
-                    }
-                });
-            }
+  function addClouds(color, count, size){
+    for (let i=0;i<count;i++){
+      const cx = rnd()*S, cy = rnd()*S;
+      const cs = randR(size*0.5, size);
+      const blobs = 3 + Math.floor(rnd()*3);
+      const blobList = [];
+      for (let b=0;b<blobs;b++){
+        blobList.push({
+          dx: (rnd()-0.5)*cs,
+          dy: (rnd()-0.5)*cs*0.4,
+          r: cs*randR(0.3, 0.6),
         });
-        document.addEventListener('DOMContentLoaded', function () {
-            const drawer = document.getElementById('statsDrawer');
-            const btn = document.getElementById('toggleStatsDrawer');
-            let open = false;
-            function updateDrawer() {
-                if (open) {
-                    drawer.classList.remove('translate-x-full');
-                    // 隐藏所有地图控件
-                    document.querySelectorAll('.mapboxgl-ctrl-top-right, .mapboxgl-ctrl-bottom-right, .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-top-left')
-                        .forEach(ctrl => ctrl.style.display = 'none');
-                } else {
-                    drawer.classList.add('translate-x-full');
-                    // 显示所有地图控件
-                    document.querySelectorAll('.mapboxgl-ctrl-top-right, .mapboxgl-ctrl-bottom-right, .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-top-left')
-                        .forEach(ctrl => ctrl.style.display = '');
-                }
-            }
-            btn.addEventListener('click', function () {
-                open = !open;
-                updateDrawer();
-            });
-            window.addEventListener('resize', updateDrawer);
-            updateDrawer();
-        });
-    </script>
-    <!-- 悬浮按钮 -->
+      }
+      wrapDraw(cx, cs*1.5, (xx)=>{
+        g.fillStyle = rgba(color, 0.22 + rnd()*0.15);
+        g.beginPath();
+        for (const bl of blobList){
+          g.moveTo(xx + bl.dx + bl.r, cy + bl.dy);
+          g.arc(xx + bl.dx, cy + bl.dy, bl.r, 0, TAU);
+        }
+        g.fill();
+      });
+    }
+  }
+
+  function addCracks(count, color, width){
+    g.strokeStyle = color;
+    g.lineCap = 'round';
+    for (let i=0;i<count;i++){
+      const x = rnd()*S, y = rnd()*S;
+      const len = randR(S*0.08, S*0.25);
+      const angle0 = rnd()*TAU;
+      wrapDraw(x, len, (xx)=>{
+        g.lineWidth = width * randR(0.5, 1.2);
+        g.globalAlpha = 0.35 + rnd()*0.3;
+        g.beginPath();
+        g.moveTo(xx, y);
+        let cx = xx, cy = y, a = angle0;
+        const segs = 3 + Math.floor(rnd()*3);
+        for (let s=0;s<segs;s++){
+          a += (rnd()-0.5)*0.8;
+          cx += Math.cos(a)*len/segs;
+          cy += Math.sin(a)*len/segs;
+          g.lineTo(cx, cy);
+        }
+        g.stroke();
+        g.globalAlpha = 1;
+      });
+    }
+  }
+
+  switch(texType){
+    case 'carbon':
+      addNoise(120, 0.45);
+      addCraters(18, S*0.015, S*0.05);
+      addContinents([rgba(shade(baseColor, -0.3), 0.4)], 8, S*0.02, S*0.05);
+      break;
+
+    case 'stony':
+      addNoise(100, 0.35);
+      addCraters(14, S*0.015, S*0.06);
+      addContinents([rgba(shade(baseColor, 0.15), 0.3)], 8, S*0.03, S*0.07);
+      break;
+
+    case 'metal':
+      for (let i=0;i<45;i++){
+        const y = rnd()*S;
+        const h = randR(0.5, 2.5);
+        g.fillStyle = rgba(shade(baseColor, (rnd()-0.5)*0.5), 0.4);
+        g.fillRect(0, y, S, h);
+      }
+      for (let i=0;i<25;i++){
+        const x = rnd()*S, y = rnd()*S, r = randR(1, 3);
+        g.fillStyle = rgba('#ffffff', 0.35);
+        wrapDraw(x, r*2, (xx)=>{ g.beginPath(); g.arc(xx, y, r, 0, TAU); g.fill(); });
+      }
+      break;
+
+    case 'icy':
+      addNoise(60, 0.3);
+      addCracks(16, rgba(shade(baseColor, -0.4), 0.6), 1.6);
+      addClouds(shade(baseColor, 0.25), 6, S*0.05);
+      break;
+
+    case 'cratered':
+      addNoise(80, 0.35);
+      addCraters(30, S*0.012, S*0.06);
+      addContinents([rgba(shade(baseColor, -0.2), 0.25)], 5, S*0.04, S*0.08);
+      break;
+
+    case 'mercury':
+      addNoise(70, 0.3);
+      addCraters(26, S*0.012, S*0.05);
+      addContinents([rgba(shade(baseColor, 0.1), 0.2)], 4, S*0.04, S*0.08);
+      break;
+
+    case 'venus':
+      addBands([
+        rgba(shade(baseColor, 0.15), 0.6),
+        rgba(shade(baseColor, -0.15), 0.5),
+        rgba(shade(baseColor, 0.25), 0.4),
+        rgba(shade(baseColor, -0.05), 0.5),
+      ], S*0.015, 9);
+      addClouds(shade(baseColor, 0.3), 12, S*0.045);
+      break;
+
+    case 'earth': {
+      addNoise(40, 0.2);
+      addContinents(['#2e6b30', '#3a7a3a', '#4a6030', '#6b5a3a'], 7, S*0.03, S*0.08);
+      const topGrad = g.createLinearGradient(0, 0, 0, S*0.12);
+      topGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
+      topGrad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = topGrad;
+      g.fillRect(0, 0, S, S*0.12);
+      const botGrad = g.createLinearGradient(0, S, 0, S*0.88);
+      botGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
+      botGrad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = botGrad;
+      g.fillRect(0, S*0.88, S, S*0.12);
+      addClouds('#ffffff', 16, S*0.035);
+      break;
+    }
+
+    case 'mars':
+      addNoise(50, 0.25);
+      addContinents([
+        rgba(shade(baseColor, -0.25), 0.4),
+        rgba(shade(baseColor, 0.15), 0.3),
+      ], 10, S*0.03, S*0.07);
+      addCraters(10, S*0.015, S*0.045);
+      g.fillStyle = 'rgba(255,255,255,0.75)';
+      g.beginPath(); g.ellipse(S*0.5, 0, S*0.15, S*0.05, 0, 0, TAU); g.fill();
+      g.beginPath(); g.ellipse(S*0.5, S, S*0.12, S*0.04, 0, 0, TAU); g.fill();
+      break;
+
+    case 'jupiter': {
+      addBands([
+        'rgba(200,170,130,0.9)',
+        'rgba(160,120,85,0.9)',
+        'rgba(230,210,175,0.9)',
+        'rgba(180,140,100,0.9)',
+        'rgba(210,185,150,0.9)',
+        'rgba(140,100,70,0.9)',
+      ], S*0.012, 14);
+      const gx = S*0.3, gy = S*0.62;
+      const spotGrad = g.createRadialGradient(gx, gy, 0, gx, gy, S*0.075);
+      spotGrad.addColorStop(0, 'rgba(200,80,40,0.9)');
+      spotGrad.addColorStop(0.7, 'rgba(160,60,30,0.5)');
+      spotGrad.addColorStop(1, 'rgba(140,50,20,0)');
+      g.fillStyle = spotGrad;
+      g.beginPath(); g.ellipse(gx, gy, S*0.075, S*0.045, 0, 0, TAU); g.fill();
+      addNoise(40, 0.2);
+      break;
+    }
+
+    case 'saturn':
+      addBands([
+        'rgba(220,200,150,0.8)',
+        'rgba(200,175,120,0.7)',
+        'rgba(235,220,170,0.8)',
+        'rgba(210,185,130,0.7)',
+      ], S*0.008, 10);
+      addNoise(30, 0.15);
+      break;
+
+    case 'iceGiant':
+      addBands([
+        rgba(shade(baseColor, 0.1), 0.5),
+        rgba(shade(baseColor, -0.1), 0.5),
+        rgba(shade(baseColor, 0.15), 0.4),
+      ], S*0.007, 7);
+      addClouds(shade(baseColor, 0.3), 8, S*0.035);
+      break;
+
+    case 'brownDwarf':
+      addBands([
+        rgba(shade(baseColor, 0.2), 0.5),
+        rgba(shade(baseColor, -0.2), 0.5),
+        rgba(shade(baseColor, 0.1), 0.4),
+      ], S*0.015, 8);
+      addClouds(shade(baseColor, 0.35), 10, S*0.04);
+      break;
+
+    case 'starM':
+    case 'starK':
+    case 'starG':
+    case 'starA':
+    case 'starO':
+      for (let i=0;i<70;i++){
+        const x = rnd()*S, y = rnd()*S;
+        const r = randR(S*0.008, S*0.035);
+        const lighten = rnd() < 0.5;
+        g.fillStyle = rgba(shade(baseColor, lighten ? 0.35 : -0.35), 0.5);
+        wrapDraw(x, r*2, (xx)=>{ g.beginPath(); g.arc(xx, y, r, 0, TAU); g.fill(); });
+      }
+      const coreGrad = g.createRadialGradient(S*0.5, S*0.5, 0, S*0.5, S*0.5, S*0.5);
+      coreGrad.addColorStop(0, rgba(shade(baseColor, 0.5), 0.4));
+      coreGrad.addColorStop(0.6, 'rgba(0,0,0,0)');
+      g.fillStyle = coreGrad;
+      g.fillRect(0,0,S,S);
+      break;
+
+    case 'neutron':
+      g.fillStyle = '#f0f8ff';
+      g.fillRect(0,0,S,S);
+      for (let i=0;i<80;i++){
+        const y = rnd()*S;
+        g.fillStyle = rgba(shade(baseColor, (rnd()-0.5)*0.4), 0.3);
+        g.fillRect(0, y, S, randR(0.5, 1.5));
+      }
+      break;
+
+    default:
+      addNoise(60, 0.3);
+  }
+}
+
+function getTex(stageIdx, variantIdx){
+  const key = stageIdx + '_' + variantIdx;
+  let t = texCache.get(key);
+  if (t) return t;
+  const variant = CATALOG[stageIdx][variantIdx];
+  const S = TEX;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  paintTexture(g, S, variant.tex, variant.color, stageIdx*7919 + variantIdx*1337 + 11);
+  texCache.set(key, c);
+  return c;
+}
+
+function preloadTextures(){
+  for (let s=0; s<CATALOG.length; s++){
+    for (let v=0; v<CATALOG[s].length; v++){
+      getTex(s, v);
+    }
+  }
+}
+
+const game = {
+  state: 'menu',
+  time: 0,
+  playTime: 0,
+  player: null,
+  enemies: [],
+  comets: [],
+  meteors: [],
+  events: [],
+  sparks: [],
+  ripples: [],
+  cam: { x:0, y:0, zoom:1 },
+  mouse: { sx:0, sy:0, wx:0, wy:0 },
+  touchIndicator: { active:false, x:0, y:0 },
+  shake: 0,
+  spawnTimer: 0,
+  cometSpawnTimer: 0,
+  meteorSpawnTimer: 0,
+  showerTimer: 0,
+  maxStage: 0,
+};
+
+game.mouse.sx = window.innerWidth/2;
+game.mouse.sy = window.innerHeight/2;
+
+/* ============================================================
+   【手机适配】Pointer Events 统一处理鼠标 / 触摸 / 触控笔
+   ============================================================ */
+let isPointerDown = false;
+let activePointerId = null;
+
+function setPointerTarget(x, y){
+  game.mouse.sx = x;
+  game.mouse.sy = y;
+}
+
+cv.addEventListener('pointerdown', e => {
+  if (game.state !== 'play') return;
+  isPointerDown = true;
+  activePointerId = e.pointerId;
+  setPointerTarget(e.clientX, e.clientY);
+  try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+
+  if (e.pointerType !== 'mouse'){
+    game.touchIndicator.active = true;
+    game.touchIndicator.x = e.clientX;
+    game.touchIndicator.y = e.clientY;
+  }
+  e.preventDefault();
+}, {passive:false});
+
+cv.addEventListener('pointermove', e => {
+  if (game.state !== 'play') return;
+
+  if (e.pointerType === 'mouse' || isPointerDown){
+    setPointerTarget(e.clientX, e.clientY);
+    if (game.touchIndicator.active){
+      game.touchIndicator.x = e.clientX;
+      game.touchIndicator.y = e.clientY;
+    }
+  }
+}, {passive:true});
+
+function endPointer(e){
+  if (e.pointerId === activePointerId){
+    isPointerDown = false;
+    activePointerId = null;
+  }
+  game.touchIndicator.active = false;
+}
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+
+// 兜底：部分老 WebView 不触发 pointer 事件
+if (!window.PointerEvent){
+  cv.addEventListener('touchstart', e=>{
+    if (!e.touches.length) return;
+    const t = e.touches[0];
+    setPointerTarget(t.clientX, t.clientY);
+    isPointerDown = true;
+    game.touchIndicator.active = true;
+    game.touchIndicator.x = t.clientX;
+    game.touchIndicator.y = t.clientY;
+    e.preventDefault();
+  }, {passive:false});
+  cv.addEventListener('touchmove', e=>{
+    if (!e.touches.length) return;
+    const t = e.touches[0];
+    setPointerTarget(t.clientX, t.clientY);
+    game.touchIndicator.x = t.clientX;
+    game.touchIndicator.y = t.clientY;
+    e.preventDefault();
+  }, {passive:false});
+  cv.addEventListener('touchend', ()=>{
+    isPointerDown = false;
+    game.touchIndicator.active = false;
+  });
+  window.addEventListener('mousemove', e=>{
+    setPointerTarget(e.clientX, e.clientY);
+  });
+}
+
+class TidalEvent {
+  constructor(victim, devourer, isPlayerDevourer){
+    this.devourer = devourer;
+    this.isPlayerDevourer = isPlayerDevourer;
+    const dx = victim.x - devourer.x;
+    const dy = victim.y - devourer.y;
+    this.dist = Math.hypot(dx, dy) || 1;
+    this.angle = Math.atan2(dy, dx);
+    this.orbitRadius = this.dist;
+    this.baseR = victim.r;
+    this.color = victim.color;
+    this.glow = victim.glow;
+    this.stageIdx = victim.stage;
+    this.variant = victim.variant;
+    this.age = 0;
+    this.duration = 1.8;
+    this.stretchRatio = 1.0;
+    this.heat = 0.0;
+    this.disruptionProgress = 0;
+    this.particles = [];
+    this.spawnAccum = 0;
+    this.massPool = victim.mass;
+    this.massRate = victim.mass / 1.4;
+    this.baseRGB = hexToRGB(victim.color);
+    this.shock = 1.0;
+  }
+
+  spawnDebris(){
+    if (this.particles.length > 180) return;
+    const isFarSide = Math.random() < 0.35;
+    const poleAngle = this.angle + (isFarSide ? 0 : Math.PI);
+    const ejectAngle = poleAngle + rand(-0.6, 0.6);
+    const rx = this.baseR * this.stretchRatio;
+    const ry = Math.max(2, this.baseR / Math.sqrt(this.stretchRatio));
+    const localX = (isFarSide ? 0.8 : -0.8) * rx;
+    const localY = rand(-ry, ry);
+    const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+    const bodyCenterX = this.devourer.x + Math.cos(this.angle) * this.dist;
+    const bodyCenterY = this.devourer.y + Math.sin(this.angle) * this.dist;
+    const px = bodyCenterX + (localX * cosA - localY * sinA);
+    const py = bodyCenterY + (localX * sinA + localY * cosA);
+    const orbSpeed = Math.sqrt(350000 / (this.dist + 10));
+    const tangentAngle = this.angle + Math.PI / 2;
+    const vx = Math.cos(tangentAngle) * orbSpeed + Math.cos(ejectAngle) * rand(20, 70);
+    const vy = Math.sin(tangentAngle) * orbSpeed + Math.sin(ejectAngle) * rand(20, 70);
+
+    this.particles.push({
+      x: px - this.devourer.x, y: py - this.devourer.y,
+      vx, vy, size: rand(0.8, 2.5), trail: [], maxTrail: Math.floor(rand(4, 9)),
+    });
+  }
+
+  update(dt){
+    this.age += dt;
+    const progress = clamp(this.age / this.duration, 0, 1);
+    this.disruptionProgress = progress;
+    const spiralFactor = Math.pow(progress, 0.85);
+    this.dist = lerp(this.orbitRadius, this.devourer.r * 0.4, spiralFactor);
+    this.angle += (1.8 + progress * 2.5) * dt;
+
+    const rocheForce = Math.pow(1 - clamp(this.dist / (this.devourer.r * 4), 0, 1), 2);
+    this.stretchRatio = 1.0 + rocheForce * 3.5 + progress * 2.0;
+    this.heat = clamp(rocheForce * 1.5 + progress * 1.2, 0, 1);
+
+    const tr = Math.min(this.massPool, this.massRate * dt);
+    if (tr > 0){
+      this.devourer.mass += tr;
+      this.massPool -= tr;
+      this.devourer.r = radiusOf(this.devourer.mass);
+      const ns = stageOf(this.devourer.mass);
+      if (ns > this.devourer.stage){
+        this.devourer.stage = ns;
+        this.devourer.variant = 0;
+      }
+      if (this.isPlayerDevourer) this.devourer.pulse = 1;
+    }
+
+    this.shock *= Math.pow(0.01, dt);
+    if (progress < 0.95){
+      const rate = 50 + progress * 250;
+      this.spawnAccum += dt * rate;
+      while (this.spawnAccum >= 1){
+        this.spawnAccum -= 1;
+        this.spawnDebris();
+      }
+    }
+
+    const GM = 4.2e5, soft2 = 400;
+    const eventHorizon = this.devourer.r * 0.7;
+
+    for (let i = this.particles.length - 1; i >= 0; i--){
+      const p = this.particles[i];
+      const r2 = p.x * p.x + p.y * p.y;
+      const r = Math.sqrt(r2);
+      if (r < eventHorizon || r > this.devourer.r * 35){
+        this.particles.splice(i, 1); continue;
+      }
+      const acc = GM / (r2 + soft2);
+      p.vx -= (p.x / r) * acc * dt;
+      p.vy -= (p.y / r) * acc * dt;
+      p.vx *= Math.pow(0.965, dt * 60);
+      p.vy *= Math.pow(0.965, dt * 60);
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.trail.unshift({ x: p.x, y: p.y });
+      if (p.trail.length > p.maxTrail) p.trail.pop();
+    }
+    return progress >= 1.0 && this.particles.length === 0;
+  }
+
+  draw(){
+    const dev = this.devourer;
+    const bodyX = dev.x + Math.cos(this.angle) * this.dist;
+    const bodyY = dev.y + Math.sin(this.angle) * this.dist;
+
+    if (this.shock > 0.02){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const shockR = this.baseR * (1.5 + (1 - this.shock) * 4.0);
+      const g = ctx.createRadialGradient(bodyX, bodyY, 0, bodyX, bodyY, shockR);
+      g.addColorStop(0, `rgba(255,245,220,${0.6 * this.shock})`);
+      g.addColorStop(0.3, `rgba(255,140,50,${0.3 * this.shock})`);
+      g.addColorStop(1, 'rgba(255,80,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bodyX, bodyY, shockR, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+
+    if (this.particles.length){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const br = this.baseRGB;
+      for (let i = 0; i < this.particles.length; i++){
+        const p = this.particles[i];
+        const distToDev = Math.hypot(p.x, p.y);
+        const heatNorm = clamp(1.0 - (distToDev - dev.r) / (dev.r * 4.0), 0, 1);
+        const cr = Math.round(lerp(br.r, 255, heatNorm));
+        const cg = Math.round(lerp(br.g, 210, heatNorm));
+        const cb = Math.round(lerp(br.b, 160, heatNorm));
+
+        if (p.trail.length > 1){
+          ctx.beginPath();
+          ctx.moveTo(dev.x + p.trail[0].x, dev.y + p.trail[0].y);
+          for (let j = 1; j < p.trail.length; j++){
+            ctx.lineTo(dev.x + p.trail[j].x, dev.y + p.trail[j].y);
+          }
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.4 + heatNorm * 0.5})`;
+          ctx.lineWidth = p.size * (1 + heatNorm * 0.8);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${0.6 + heatNorm * 0.4})`;
+        ctx.beginPath(); ctx.arc(dev.x + p.x, dev.y + p.y, p.size * (0.8 + heatNorm * 0.6), 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    if (this.disruptionProgress < 0.98){
+      ctx.save();
+      ctx.translate(bodyX, bodyY);
+      ctx.rotate(this.angle);
+      const currentScaleX = this.stretchRatio * (1 - this.disruptionProgress * 0.7);
+      const currentScaleY = Math.max(0.05, (1 / Math.sqrt(this.stretchRatio)) * (1 - this.disruptionProgress * 0.85));
+      ctx.scale(currentScaleX, currentScaleY);
+
+      if (this.heat > 0.05){
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const glowR = this.baseR * 2.2;
+        const hg = ctx.createRadialGradient(0, 0, this.baseR * 0.3, 0, 0, glowR);
+        hg.addColorStop(0, `rgba(255,220,150,${this.heat * 0.8})`);
+        hg.addColorStop(0.5, `rgba(255,100,30,${this.heat * 0.4})`);
+        hg.addColorStop(1, 'rgba(200,30,0,0)');
+        ctx.fillStyle = hg; ctx.fillRect(-glowR, -glowR, glowR * 2, glowR * 2);
+        ctx.restore();
+      }
+
+      ctx.globalAlpha = clamp(1.2 - this.disruptionProgress, 0, 1);
+      drawBody(0, 0, this.baseR, this.stageIdx, this.variant, this.age * 3);
+      ctx.restore();
+    }
+  }
+}
+
+class MutualCrashEvent {
+  constructor(x, y, r, colorA, colorB){
+    this.x = x; this.y = y; this.r = r * 1.5;
+    this.colorA = colorA; this.colorB = colorB;
+    this.age = 0; this.duration = 1.6;
+    this.particles = []; this.shock = 1.0;
+
+    for (let i=0; i<110; i++){
+      const a = Math.random() * TAU, sp = rand(70, 360);
+      this.particles.push({
+        x: this.x + rand(-10, 10), y: this.y + rand(-10, 10),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        size: rand(1.2, 3.8), color: Math.random() < 0.5 ? this.colorA : this.colorB,
+        life: 1.0
+      });
+    }
+  }
+
+  update(dt){
+    this.age += dt;
+    const progress = clamp(this.age / this.duration, 0, 1);
+    this.shock *= Math.pow(0.01, dt);
+
+    for (let i=this.particles.length-1; i>=0; i--){
+      const p = this.particles[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= Math.pow(0.5, dt * 4); p.vy *= Math.pow(0.5, dt * 4);
+      p.life -= dt * 1.2;
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+    return progress >= 1.0 && this.particles.length === 0;
+  }
+
+  draw(){
+    if (this.shock > 0.05){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const r = this.r * (1 + (1 - this.shock) * 4.0);
+      const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r);
+      g.addColorStop(0, 'rgba(255,240,200,0.85)');
+      g.addColorStop(0.4, 'rgba(120,220,255,0.45)');
+      g.addColorStop(1, 'rgba(0,100,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+
+    if (this.particles.length){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of this.particles){
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = clamp(p.life, 0, 1);
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+}
+
+function addSparks(x,y,color,n){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*TAU, sp = rand(40,220);
+    game.sparks.push({
+      x, y,
+      vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+      life: 1, color, size: rand(1.2,3.5)
+    });
+  }
+}
+
+function shatterEnemyIntoFrags(e){
+  e.dead = true;
+  game.events.push(new MutualCrashEvent(e.x, e.y, e.r, '#ff3333', e.color));
+  game.shake = Math.min(game.shake + 6, 10);
+
+  if (game.enemies.length > 220) return;
+
+  const count = Math.floor(rand(5, 9));
+  const fragMass = (e.mass * 0.8) / count;
+  for (let i=0; i<count; i++){
+    const fa = Math.random() * TAU, fs = rand(80, 260);
+    game.enemies.push({
+      x: e.x + Math.cos(fa) * (e.r * 0.4),
+      y: e.y + Math.sin(fa) * (e.r * 0.4),
+      vx: Math.cos(fa) * fs, vy: Math.sin(fa) * fs,
+      mass: fragMass, r: radiusOf(fragMass), stage: stageOf(fragMass),
+      variant: 0, label: '', color: e.color, glow: e.glow, angle: Math.random()*TAU, spin: rand(-1,1),
+      aiTimer: 0, dead: false
+    });
+  }
+}
+
+class DangerMeteor {
+  constructor(startX, startY, targetX, targetY){
+    this.startX = startX; this.startY = startY;
+    this.targetX = targetX; this.targetY = targetY;
+    this.x = startX; this.y = startY;
+
+    const roll = Math.random();
+    if (roll < 0.55) {
+      this.r = rand(12, 22);
+      this.warningDuration = 1.1;
+    } else if (roll < 0.85) {
+      this.r = rand(28, 48);
+      this.warningDuration = 1.4;
+    } else {
+      this.r = rand(55, 95);
+      this.warningDuration = 1.8;
+    }
+
+    this.warningTimer = this.warningDuration;
+    this.dead = false;
+    this.isFlying = false;
+
+    const dx = targetX - startX, dy = targetY - startY;
+    const dist = Math.hypot(dx, dy) || 1;
+    this.angle = Math.atan2(dy, dx);
+    this.speed = rand(800, 1200);
+    this.vx = (dx / dist) * this.speed;
+    this.vy = (dy / dist) * this.speed;
+
+    this.trail = [];
+    this.maxTrail = Math.floor(rand(28, 45));
+    this.penetrationCount = 0;
+  }
+
+  update(dt){
+    if (this.warningTimer > 0){
+      this.warningTimer -= dt;
+      if (this.warningTimer <= 0){
+        this.isFlying = true;
+      }
+      return;
+    }
+
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+
+    const p = game.player;
+    const dx = p.x - this.x, dy = p.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < p.r + this.r){
+      const radiusRatio = p.r / this.r;
+      if (radiusRatio < 0.82) {
+        this.dead = true;
+        game.events.push(new MutualCrashEvent(p.x, p.y, Math.max(p.r, this.r)*1.8, '#ff1111', '#4a80c0'));
+        game.shake = 16;
+        gameOver();
+        return;
+      } else {
+        triggerPlayerShatter(p, { x: this.x, y: this.y, r: this.r, color: '#ff3333' });
+        this.dead = true;
+        return;
+      }
+    }
+
+    for (const e of game.enemies){
+      if (e.dead) continue;
+      const edx = e.x - this.x, edy = e.y - this.y;
+      if (Math.hypot(edx, edy) < e.r + this.r){
+        if (this.r >= e.r * 0.8) {
+          shatterEnemyIntoFrags(e);
+          this.penetrationCount++;
+          if (this.penetrationCount >= 3) {
+            this.dead = true;
+            break;
+          }
+        } else {
+          shatterEnemyIntoFrags(e);
+          this.dead = true;
+          break;
+        }
+      }
+    }
+
+    this.trail.unshift({ x: this.x, y: this.y });
+    if (this.trail.length > this.maxTrail) this.trail.pop();
+
+    const viewR = Math.max(W,H) / (2 * game.cam.zoom);
+    if (Math.hypot(this.x - p.x, this.y - p.y) > viewR * 3.5) this.dead = true;
+  }
+
+  draw(){
+    if (this.warningTimer > 0){
+      ctx.save();
+      const alpha = 0.4 + 0.6 * Math.sin(game.time * 24);
+
+      ctx.strokeStyle = `rgba(255, 30, 30, ${alpha * 0.75})`;
+      ctx.lineWidth = Math.max(1.5, this.r * 0.12);
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(this.startX, this.startY);
+      ctx.lineTo(this.targetX + Math.cos(this.angle)*1400, this.targetY + Math.sin(this.angle)*1400);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(255, 20, 20, ${alpha})`;
+      ctx.lineWidth = Math.max(2, this.r * 0.15);
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(this.targetX, this.targetY, (this.r * 1.8) * (this.warningTimer / this.warningDuration + 0.2), 0, TAU);
+      ctx.stroke();
+
+      ctx.restore();
+      return;
+    }
+
+    if (this.trail.length > 1){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i=0; i<this.trail.length-1; i++){
+        const k = 1 - i / this.trail.length;
+        ctx.strokeStyle = `rgba(255, 50, 10, ${k * 0.9})`;
+        ctx.lineWidth = this.r * k * 2.2;
+        ctx.beginPath();
+        ctx.moveTo(this.trail[i].x, this.trail[i].y);
+        ctx.lineTo(this.trail[i+1].x, this.trail[i+1].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 3.6);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.25, '#ff3300');
+    g.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.r * 3.6, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function spawnDangerMeteor(scatter){
+  const p = game.player;
+  const viewR = Math.max(W,H) / (2 * game.cam.zoom);
+
+  const ang = Math.random() * TAU;
+  const spawnDist = viewR * 1.45;
+  const startX = p.x + Math.cos(ang) * spawnDist;
+  const startY = p.y + Math.sin(ang) * spawnDist;
+
+  const scatterR = scatter ? 450 : 50;
+  const targetX = p.x + rand(-scatterR, scatterR);
+  const targetY = p.y + rand(-scatterR, scatterR);
+
+  game.meteors.push(new DangerMeteor(startX, startY, targetX, targetY));
+}
+
+class Comet {
+  constructor(x, y, vx, vy){
+    this.x = x; this.y = y;
+    this.vx = vx; this.vy = vy;
+    this.r = rand(5, 8.5);
+    this.dead = false;
+    this.state = 'free';
+    this.orbitRadius = 0;
+    this.orbitAngle = 0;
+    this.orbitSpeed = 0;
+    this.trail = [];
+    this.maxTrail = 24;
+  }
+
+  update(dt){
+    const p = game.player;
+
+    if (this.state === 'free'){
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+
+      const dx = this.x - p.x, dy = this.y - p.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < p.r + this.r * 0.5){
+        this.dead = true;
+        p.mass = Math.max(10, p.mass - 150);
+        p.r = radiusOf(p.mass);
+        game.shake = 6;
+        addSparks(this.x, this.y, '#90e0ff', 25);
+        return;
+      }
+
+      if (dist < p.r * 3.8 && dist > p.r * 1.1){
+        this.state = 'orbit';
+        this.orbitRadius = dist;
+        this.orbitAngle = Math.atan2(dy, dx);
+        this.orbitSpeed = rand(2.5, 4.0) * (Math.random() < 0.5 ? 1 : -1);
+        game.ripples.push({ x: this.x, y: this.y, r: 5, max: 45, life: 0.8, color: '#7ce4ff' });
+      }
+    }
+    else if (this.state === 'orbit'){
+      this.orbitAngle += this.orbitSpeed * dt;
+      const targetR = p.r * 2.2;
+      this.orbitRadius += (targetR - this.orbitRadius) * dt * 2.2;
+
+      this.x = p.x + Math.cos(this.orbitAngle) * this.orbitRadius;
+      this.y = p.y + Math.sin(this.orbitAngle) * this.orbitRadius;
+
+      for (const e of game.enemies){
+        if (e.dead) continue;
+        const edx = e.x - this.x, edy = e.y - this.y;
+        const edist = Math.hypot(edx, edy);
+
+        if (edist < e.r + this.r){
+          const ratio = e.mass / p.mass;
+
+          if (ratio > 2.8){
+            this.state = 'free';
+            const toPlayerAngle = Math.atan2(p.y - e.y, p.x - e.x) + rand(-0.25, 0.25);
+            const throwSpeed = rand(600, 850);
+            this.vx = Math.cos(toPlayerAngle) * throwSpeed;
+            this.vy = Math.sin(toPlayerAngle) * throwSpeed;
+            game.shake = 6;
+            game.ripples.push({ x: e.x, y: e.y, r: e.r, max: e.r * 2.8, life: 1.0, color: '#ff4444' });
+            break;
+          } else {
+            this.dead = true;
+            shatterEnemyIntoFrags(e);
+            break;
+          }
+        }
+      }
+    }
+
+    this.trail.unshift({ x: this.x, y: this.y });
+    if (this.trail.length > this.maxTrail) this.trail.pop();
+  }
+
+  draw(){
+    if (this.trail.length > 1){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i=0; i<this.trail.length-1; i++){
+        const k = 1 - i / this.trail.length;
+        ctx.strokeStyle = `rgba(140, 225, 255, ${k * 0.75})`;
+        ctx.lineWidth = this.r * k * 1.6;
+        ctx.beginPath();
+        ctx.moveTo(this.trail[i].x, this.trail[i].y);
+        ctx.lineTo(this.trail[i+1].x, this.trail[i+1].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 3.0);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.4, '#7ce4ff');
+    g.addColorStop(1, 'rgba(0,160,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(this.x, this.y, this.r * 3.0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function spawnComet(){
+  const p = game.player;
+  const viewR = Math.max(W,H) / (2 * game.cam.zoom);
+  const ang = Math.random() * TAU;
+  const spawnDist = viewR * 1.35;
+  const x = p.x + Math.cos(ang) * spawnDist;
+  const y = p.y + Math.sin(ang) * spawnDist;
+  const toPlayer = Math.atan2(p.y - y, p.x - x) + rand(-0.4, 0.4);
+  const spd = rand(260, 420);
+  game.comets.push(new Comet(x, y, Math.cos(toPlayer) * spd, Math.sin(toPlayer) * spd));
+}
+
+function resetGame(){
+  const p = {
+    x:0, y:0, vx:0, vy:0,
+    mass: 100,
+    r: radiusOf(100),
+    angle: 0,
+    stage: 0,
+    pulse: 0,
+    label: '',
+  };
+  game.player   = p;
+  game.enemies  = [];
+  game.comets   = [];
+  game.meteors  = [];
+  game.events   = [];
+  game.sparks   = [];
+  game.ripples  = [];
+  game.cam      = { x:0, y:0, zoom: clamp(80/p.r, 0.05, 1.15) };
+  game.playTime = 0;
+  game.shake    = 0;
+  game.spawnTimer = 0;
+  game.cometSpawnTimer = 0;
+  game.meteorSpawnTimer = 2.5;
+  game.showerTimer = rand(15, 25);
+  game.maxStage = 0;
+  game.state    = 'play';
+
+  for (let i=0;i<70;i++) spawnEnemy(true);
+}
+
+function pickVariant(stageIdx){
+  const variants = CATALOG[stageIdx];
+  const count = new Array(variants.length).fill(0);
+  for (const e of game.enemies){
+    if (e.stage === stageIdx && !e.dead) count[e.variant]++;
+  }
+  let minC = Infinity;
+  const pool = [];
+  for (let i=0;i<variants.length;i++){
+    if (count[i] < minC){ minC = count[i]; pool.length = 0; pool.push(i); }
+    else if (count[i] === minC) pool.push(i);
+  }
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function spawnEnemy(initial){
+  const p = game.player;
+  const zoom = game.cam.zoom;
+  const baseR = Math.max(W,H) / (2*zoom);
+  const ang = Math.random()*TAU;
+  const dist = initial ? rand(p.r*2.0, baseR*1.3) : baseR * rand(1.1, 1.5);
+
+  const roll = Math.random();
+  const calm = initial || game.playTime < 4;
+  let mass;
+
+  if (calm){
+    mass = p.mass * rand(0.02, 0.70);
+  } else if (roll < 0.40){
+    mass = p.mass * rand(0.008, 0.20);
+  } else if (roll < 0.68){
+    mass = p.mass * rand(0.20, 0.65);
+  } else if (roll < 0.85){
+    mass = p.mass * rand(0.65, 0.98);
+  } else {
+    mass = p.mass * rand(1.25, 3.80);
+  }
+  mass = Math.max(mass, 3);
+
+  const stage = stageOf(mass);
+  const variantIdx = pickVariant(stage);
+  const variant = CATALOG[stage][variantIdx];
+  const r = radiusOf(mass);
+
+  const spawnX = p.x + Math.cos(ang)*dist;
+  const spawnY = p.y + Math.sin(ang)*dist;
+  const crossTargetX = p.x + rand(-baseR*0.5, baseR*0.5);
+  const crossTargetY = p.y + rand(-baseR*0.5, baseR*0.5);
+  const toP = Math.atan2(crossTargetY - spawnY, crossTargetX - spawnX);
+  const spd = rand(20, 50);
+
+  game.enemies.push({
+    x: spawnX, y: spawnY,
+    vx: Math.cos(toP)*spd, vy: Math.sin(toP)*spd,
+    mass, r, stage,
+    variant: variantIdx,
+    label: variant.label,
+    color: variant.color,
+    glow: variant.glow,
+    angle: Math.random()*TAU,
+    spin: rand(-0.7,0.7),
+    aiTimer: 0,
+    aiMode: Math.random() < 0.35 ? 'orbit' : 'normal',
+    dead: false,
+  });
+}
+
+function devourDirect(victim, devourer, isPlayerDevourer){
+  victim.dead = true;
+  devourer.mass += victim.mass * 0.95;
+  devourer.r = radiusOf(devourer.mass);
+  const ns = stageOf(devourer.mass);
+  if (ns > devourer.stage){
+    devourer.stage = ns;
+    devourer.variant = 0;
+  }
+  if (isPlayerDevourer) devourer.pulse = 1;
+  addSparks(victim.x, victim.y, victim.color, 12);
+}
+
+const CAN_TEAR_RATIO = 1.3;
+
+function startTidalDisruption(victim, devourer, isPlayerDevourer){
+  victim.dead = true;
+  if (isPlayerDevourer){
+    game.shake = Math.min(game.shake + victim.r * 0.10, 5);
+  }
+  game.events.push(new TidalEvent(victim, devourer, isPlayerDevourer));
+}
+
+function mutualDestruction(a, b){
+  a.dead = true; b.dead = true;
+  game.events.push(new MutualCrashEvent((a.x + b.x)/2, (a.y + b.y)/2, Math.max(a.r, b.r), a.color, b.color));
+  game.shake = Math.min(game.shake + 8, 12);
+  addSparks((a.x + b.x)/2, (a.y + b.y)/2, '#ffaa44', 40);
+}
+
+function checkEnemyCollisions(){
+  const list = game.enemies;
+  for (let i=0; i<list.length; i++){
+    const a = list[i];
+    if (a.dead) continue;
+
+    for (let j=i+1; j<list.length; j++){
+      const b = list[j];
+      if (b.dead) continue;
+
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d  = Math.hypot(dx,dy);
+      if (d > a.r + b.r) continue;
+
+      const ratio = a.mass / b.mass;
+      if (ratio > CAN_TEAR_RATIO){
+        if (b.r < 4 || game.events.length >= 12) {
+          devourDirect(b, a, false);
+        } else {
+          startTidalDisruption(b, a, false);
+        }
+        if (a.dead) break;
+      } else if (ratio < 1 / CAN_TEAR_RATIO){
+        if (a.r < 4 || game.events.length >= 12) {
+          devourDirect(a, b, false);
+        } else {
+          startTidalDisruption(a, b, false);
+        }
+        if (b.dead) break;
+      } else {
+        mutualDestruction(a, b);
+      }
+    }
+  }
+}
+
+function triggerPlayerShatter(p, e){
+  e.dead = true;
+  const lostMass = p.mass * 0.42;
+  p.mass = Math.max(15, p.mass - lostMass);
+  p.r = radiusOf(p.mass);
+  p.stage = stageOf(p.mass);
+
+  game.shake = 12;
+  game.events.push(new MutualCrashEvent((p.x+e.x)/2, (p.y+e.y)/2, Math.max(p.r, e.r), '#4a80c0', e.color || '#ff3333'));
+
+  const dx = p.x - e.x, dy = p.y - e.y;
+  const angle = Math.atan2(dy, dx);
+  const knockback = Math.max(400, 240 / game.cam.zoom * 1.2);
+  p.vx = Math.cos(angle) * knockback;
+  p.vy = Math.sin(angle) * knockback;
+
+  const count = 5;
+  const fragMass = lostMass / count;
+  for(let i=0; i<count; i++){
+    const fa = Math.random() * TAU, fs = rand(70, 180);
+    game.enemies.push({
+      x: p.x + Math.cos(fa) * (p.r + 10), y: p.y + Math.sin(fa) * (p.r + 10),
+      vx: Math.cos(fa) * fs, vy: Math.sin(fa) * fs,
+      mass: fragMass, r: radiusOf(fragMass), stage: stageOf(fragMass),
+      variant: 0, label: '', color: '#9ae6ff', glow: '#3fb8ff', angle: Math.random()*TAU, spin: rand(-1,1),
+      aiTimer: 0, aiMode:'normal', dead: false
+    });
+  }
+}
+
+function gameOver(){
+  if (game.state !== 'play') return;
+  game.state = 'over';
+  showOver();
+}
+
+function updateCamera(dt){
+  const p = game.player;
+  const targetZoom = clamp(80 / p.r, 0.05, 1.15);
+
+  game.cam.x += (p.x - game.cam.x) * Math.min(1, dt*6.5);
+  game.cam.y += (p.y - game.cam.y) * Math.min(1, dt*6.5);
+  game.cam.zoom += (targetZoom - game.cam.zoom) * Math.min(1, dt*3.2);
+
+  game.mouse.wx = game.cam.x + (game.mouse.sx - W/2) / game.cam.zoom;
+  game.mouse.wy = game.cam.y + (game.mouse.sy - H/2) / game.cam.zoom;
+}
+
+function updatePlayer(dt){
+  const p = game.player;
+  const dx = game.mouse.wx - p.x, dy = game.mouse.wy - p.y;
+  const d  = Math.hypot(dx,dy);
+  const speed = 260 / game.cam.zoom;
+
+  if (d > p.r*0.6 && d > 1){
+    const tvx = dx/d * speed, tvy = dy/d * speed;
+    const acc = Math.min(1, dt*3.2);
+    p.vx += (tvx - p.vx) * acc;
+    p.vy += (tvy - p.vy) * acc;
+  } else {
+    p.vx *= Math.pow(0.0006, dt);
+    p.vy *= Math.pow(0.0006, dt);
+  }
+
+  p.x += p.vx*dt; p.y += p.vy*dt;
+  p.angle += dt * 0.55;
+  p.r = radiusOf(p.mass);
+  p.pulse *= Math.pow(0.02, dt);
+
+  const ns = stageOf(p.mass);
+  if (ns > p.stage){
+    p.stage = ns;
+    game.maxStage = Math.max(game.maxStage, ns);
+    game.shake = Math.min(game.shake + 4, 8);
+    game.ripples.push({
+      x:p.x, y:p.y, r:p.r*0.8, max:p.r*12, life:1, color: CATALOG[ns][0].glow || '#ffffff'
+    });
+    addSparks(p.x, p.y, CATALOG[ns][0].glow || '#ffffff', 30);
+  }
+}
+
+function updateEnemies(dt){
+  const p = game.player;
+  const viewR = Math.max(W,H) / (2*game.cam.zoom);
+
+  for (let i = game.enemies.length - 1; i >= 0; i--){
+    const e = game.enemies[i];
+    if (e.dead){ game.enemies.splice(i, 1); continue; }
+
+    const dx = p.x - e.x, dy = p.y - e.y;
+    const d  = Math.hypot(dx,dy) || 1;
+
+    if (d < p.r + e.r){
+      const ratio = p.mass / e.mass;
+      if (ratio > CAN_TEAR_RATIO){
+        if (e.r < 4 || game.events.length >= 12) {
+          devourDirect(e, p, true);
+        } else {
+          startTidalDisruption(e, p, true);
+        }
+      } else if (ratio < 1 / 2.8 && e.mass > p.mass * 2.5){
+        gameOver(); return;
+      } else {
+        triggerPlayerShatter(p, e);
+      }
+    }
+
+    if (d > viewR * 1.3) {
+      const pullForce = (d - viewR * 1.25) * 1.2 * dt;
+      e.vx += (dx / d) * pullForce;
+      e.vy += (dy / d) * pullForce;
+    }
+
+    e.aiTimer = (e.aiTimer || 0) - dt;
+
+    if (d < viewR * 1.2) {
+      if (e.mass > p.mass * 1.15) {
+        e.vx += (dx / d) * 48 * dt;
+        e.vy += (dy / d) * 48 * dt;
+      } else if (p.mass > e.mass * 1.25) {
+        if (e.aiMode === 'orbit') {
+          const tangentX = -dy / d, tangentY = dx / d;
+          e.vx += (tangentX * 40 - (dx / d) * 12) * dt;
+          e.vy += (tangentY * 40 - (dy / d) * 12) * dt;
+        } else {
+          e.vx -= (dx / d) * 28 * dt;
+          e.vy -= (dy / d) * 28 * dt;
+        }
+      }
+    }
+
+    if (e.aiTimer <= 0) {
+      let nearestSmallerDist = Infinity, targetPrey = null;
+      for (let j=0; j<game.enemies.length; j++){
+        if (i === j) continue;
+        const other = game.enemies[j];
+        if (other.dead) continue;
+        const odist = Math.hypot(other.x - e.x, other.y - e.y);
+
+        if (odist < viewR * 0.8 && e.mass > other.mass * CAN_TEAR_RATIO && odist < nearestSmallerDist) {
+          nearestSmallerDist = odist; targetPrey = other;
+        }
+      }
+
+      if (targetPrey) {
+        const tdx = targetPrey.x - e.x, tdy = targetPrey.y - e.y;
+        const tdist = Math.hypot(tdx, tdy) || 1;
+        e.vx += (tdx / tdist) * 40 * dt; e.vy += (tdy / tdist) * 40 * dt;
+      }
+
+      e.aiTimer = rand(1.8, 3.5);
+    }
+
+    const damp = Math.pow(0.78, dt);
+    e.vx *= damp; e.vy *= damp;
+    e.x += e.vx*dt; e.y += e.vy*dt;
+    e.angle += e.spin*dt;
+
+    if (d > viewR * 2.8) game.enemies.splice(i, 1);
+  }
+}
+
+function updateComets(dt){
+  for (let i=game.comets.length-1; i>=0; i--){
+    const c = game.comets[i];
+    c.update(dt);
+    if (c.dead){ game.comets.splice(i, 1); }
+  }
+}
+
+function updateMeteors(dt){
+  for (let i=game.meteors.length-1; i>=0; i--){
+    const m = game.meteors[i];
+    m.update(dt);
+    if (m.dead){ game.meteors.splice(i, 1); }
+  }
+}
+
+function updateEvents(dt){
+  for (let i=game.events.length-1;i>=0;i--){
+    if (game.events[i].update(dt)) game.events.splice(i,1);
+  }
+}
+
+function updateSparks(dt){
+  for (let i=game.sparks.length-1;i>=0;i--){
+    const s = game.sparks[i];
+    s.x += s.vx*dt; s.y += s.vy*dt;
+    s.vx *= Math.pow(0.12, dt); s.vy *= Math.pow(0.12, dt);
+    s.life -= dt*1.9;
+    if (s.life <= 0) game.sparks.splice(i,1);
+  }
+}
+
+function updateRipples(dt){
+  for (let i=game.ripples.length-1;i>=0;i--){
+    const r = game.ripples[i];
+    r.life -= dt*1.6;
+    if (r.life <= 0) game.ripples.splice(i,1);
+  }
+}
+
+function spawnLogic(dt){
+  let alive = 0;
+  for (let i = game.enemies.length - 1; i >= 0; i--){
+    if (game.enemies[i].dead) game.enemies.splice(i, 1);
+    else alive++;
+  }
+
+  if (alive < 110){
+    game.spawnTimer -= dt;
+    if (game.spawnTimer <= 0){
+      spawnEnemy(false);
+      game.spawnTimer = 0.03;
+    }
+  } else {
+    game.spawnTimer = 0;
+  }
+
+  game.cometSpawnTimer -= dt;
+  if (game.cometSpawnTimer <= 0 && game.comets.length < 6){
+    spawnComet();
+    game.cometSpawnTimer = rand(2.5, 5.0);
+  }
+
+  game.meteorSpawnTimer -= dt;
+  if (game.meteorSpawnTimer <= 0 && game.meteors.length < 5){
+    spawnDangerMeteor(false);
+    game.meteorSpawnTimer = rand(3.5, 6.0);
+  }
+
+  game.showerTimer -= dt;
+  if (game.showerTimer <= 0){
+    const showerCount = Math.floor(rand(6, 11));
+    for (let i=0; i<showerCount; i++){
+      setTimeout(()=> { if (game.state === 'play') spawnDangerMeteor(true); }, i * 180);
+    }
+    game.showerTimer = rand(20, 32);
+  }
+}
+
+function drawBackground(){
+  const cam = game.cam;
+  ctx.fillStyle = '#030409';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.globalCompositeOperation = 'lighter';
+  for (const n of NEBULAS){
+    const px = ((n.x - cam.x*n.p) % (W+1200) + W+1200) % (W+1200) - 600;
+    const py = ((n.y - cam.y*n.p) % (H+1200) + H+1200) % (H+1200) - 600;
+    const g = ctx.createRadialGradient(px,py,0,px,py,n.r);
+    g.addColorStop(0, n.c1); g.addColorStop(1, n.c2);
+    ctx.fillStyle = g; ctx.fillRect(px-n.r, py-n.r, n.r*2, n.r*2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  const t = game.time;
+  for (const s of STARS){
+    const px = ((s.x - cam.x*s.p) % W + W) % W;
+    const py = ((s.y - cam.y*s.p) % H + H) % H;
+    const tw = 0.72 + 0.28*Math.sin(t*1.7 + s.tw);
+    ctx.globalAlpha = s.a * tw; ctx.fillStyle = s.c;
+    ctx.fillRect(px, py, s.s, s.s);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBlackHole(x,y,r,rot){
+  ctx.save();
+  ctx.translate(x,y);
+
+  ctx.globalCompositeOperation = 'lighter';
+  const lensGlow = ctx.createRadialGradient(0,0,r*0.8, 0,0,r*5.5);
+  lensGlow.addColorStop(0.0, 'rgba(255,230,180,0.85)');
+  lensGlow.addColorStop(0.2, 'rgba(255,140,40,0.45)');
+  lensGlow.addColorStop(0.6, 'rgba(160,30,10,0.12)');
+  lensGlow.addColorStop(1.0, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lensGlow;
+  ctx.beginPath(); ctx.arc(0,0,r*5.5,0,TAU); ctx.fill();
+
+  ctx.save();
+  ctx.rotate(rot*0.4); ctx.scale(1, 0.28);
+  const diskGrad = ctx.createRadialGradient(0,0,r*1.1, 0,0,r*4.8);
+  diskGrad.addColorStop(0.00,'rgba(255,255,240,1.0)');
+  diskGrad.addColorStop(0.15,'rgba(255,190,80,0.9)');
+  diskGrad.addColorStop(0.45,'rgba(230,80,20,0.5)');
+  diskGrad.addColorStop(1.00,'rgba(50,0,0,0)');
+  ctx.fillStyle = diskGrad;
+  ctx.beginPath(); ctx.arc(0,0,r*4.8,0,TAU); ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(255,245,220,0.95)';
+  ctx.lineWidth = Math.max(1.5, r*0.08);
+  ctx.beginPath(); ctx.arc(0,0,r*1.08,0,TAU); ctx.stroke();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000000';
+  ctx.beginPath(); ctx.arc(0,0,r,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+function drawBody(x, y, r, stageIdx, variantIdx, rot){
+  if (r < 0.35) return;
+  const stage   = STAGES[stageIdx];
+  const variant = CATALOG[stageIdx][variantIdx] || CATALOG[stageIdx][0];
+
+  if (stage.type === 'blackhole'){ drawBlackHole(x,y,r,rot); return; }
+
+  if (stage.type === 'star' || stage.type === 'neutron'){
+    const pulse = 1 + Math.sin(game.time*2.2 + x*0.005)*0.06;
+    const gr = r * (stage.type==='neutron' ? 5.2 : 3.5) * pulse;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(getGlow(variant.glow,128), x-gr, y-gr, gr*2, gr*2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    const gr = r*2.2;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(getGlow(variant.glow,128), x-gr, y-gr, gr*2, gr*2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  if (r < 6){
+    ctx.fillStyle = variant.color;
+    ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill(); return;
+  }
+
+  const tex   = getTex(stageIdx, variantIdx);
+  const light = getLight();
+  const tw = 2*r;
+  let off = (rot * r * 0.55) % tw;
+  if (off < 0) off += tw;
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.clip();
+  ctx.drawImage(tex, x - r + off,       y - r, tw, tw);
+  ctx.drawImage(tex, x - r + off - tw,  y - r, tw, tw);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(light, x - r, y - r, tw, tw);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.ellipse(x - r*0.33, y - r*0.34, r*0.32, r*0.20, -0.72, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* 手机上屏幕更小，标签阈值稍微放宽，避免满屏字 */
+function drawLabels(){
+  const zoom = game.cam.zoom;
+  const cam = game.cam;
+  const halfW = W/(2*zoom), halfH = H/(2*zoom);
+  const L = cam.x - halfW, R = cam.x + halfW;
+  const T = cam.y - halfH, B = cam.y + halfH;
+
+  const isMobile = W < 700;
+  const minScreenR = isMobile ? 8 : 6;
+  const fsMin = isMobile ? 9 : 10;
+  const fsMax = isMobile ? 14 : 18;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.lineJoin = 'round';
+
+  for (const e of game.enemies){
+    if (e.dead || !e.label) continue;
+    if (e.r * zoom < minScreenR) continue;
+    if (e.x < L || e.x > R || e.y < T || e.y > B) continue;
+
+    const fsScreen = clamp(Math.round(e.r * zoom * 0.55), fsMin, fsMax);
+    const fs = fsScreen / zoom;
+
+    ctx.font = `600 ${fs}px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif`;
+
+    const textY = e.y + e.r + fs * 0.55;
+
+    ctx.lineWidth = Math.max(1.5, fs * 0.22);
+    ctx.strokeStyle = 'rgba(2,4,12,0.88)';
+    ctx.strokeText(e.label, e.x, textY);
+
+    ctx.fillStyle = 'rgba(205,228,255,0.86)';
+    ctx.fillText(e.label, e.x, textY);
+  }
+
+  ctx.restore();
+}
+
+function drawWorld(){
+  const p = game.player;
+  const zoom = game.cam.zoom;
+  const cam = game.cam;
+
+  const halfW = W/(2*zoom), halfH = H/(2*zoom);
+  const L = cam.x - halfW - 200, R = cam.x + halfW + 200;
+  const T = cam.y - halfH - 200, B = cam.y + halfH + 200;
+
+  for (const e of game.enemies){
+    if (e.dead) continue;
+    if (e.x < L - e.r || e.x > R + e.r || e.y < T - e.r || e.y > B + e.r) continue;
+    drawBody(e.x, e.y, e.r, e.stage, e.variant, e.angle);
+  }
+
+  for (const c of game.comets) c.draw();
+  for (const m of game.meteors) m.draw();
+  for (const ev of game.events) ev.draw();
+
+  if (game.player && game.state === 'play'){
+    const pr = p.r * (1 + p.pulse*0.035);
+    drawBody(p.x, p.y, pr, p.stage, 0, p.angle);
+  }
+
+  drawLabels();
+
+  for (const s of game.sparks){
+    ctx.globalAlpha = clamp(s.life, 0, 1) * 0.9;
+    ctx.fillStyle = s.color;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const rp of game.ripples){
+    const k = 1 - rp.life;
+    const rad = lerp(rp.r, rp.max, k);
+    ctx.strokeStyle = rgba(rp.color, rp.life*0.55);
+    ctx.lineWidth = Math.max(0.8, rp.life*rp.r*0.22 + 0.7);
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, rad, 0, TAU); ctx.stroke();
+  }
+}
+
+/* 屏幕空间的触摸位置指示器 */
+function drawTouchIndicator(){
+  const ti = game.touchIndicator;
+  if (!ti || !ti.active) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ti.x, ti.y, 24, 0, TAU);
+  ctx.strokeStyle = 'rgba(140,200,255,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(ti.x, ti.y, 4, 0, TAU);
+  ctx.fillStyle = 'rgba(140,200,255,0.6)';
+  ctx.fill();
+  ctx.restore();
+}
+
+function render(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawBackground();
+
+  if (game.player){
+    const cam = game.cam;
+    ctx.save();
+    ctx.translate(W/2, H/2);
+
+    if (game.shake > 0.15){
+      const s = game.shake * 0.32;
+      ctx.translate(rand(-s, s), rand(-s, s));
+    }
+
+    ctx.scale(cam.zoom, cam.zoom);
+    ctx.translate(-cam.x, -cam.y);
+
+    drawWorld();
+    ctx.restore();
+  }
+
+  drawTouchIndicator();
+}
+
+let last = performance.now();
+
+function loop(now){
+  const dt = Math.min((now - last)/1000, 0.05);
+  last = now;
+  game.time += dt;
+
+  if (game.state === 'play'){
+    game.playTime += dt;
+    updateCamera(dt);
+    updatePlayer(dt);
+    updateEnemies(dt);
+    checkEnemyCollisions();
+    updateComets(dt);
+    updateMeteors(dt);
+    updateEvents(dt);
+    updateSparks(dt);
+    updateRipples(dt);
+    spawnLogic(dt);
+    game.shake *= Math.pow(0.004, dt);
+    if (game.shake < 0.1) game.shake = 0;
+    updateHUD();
+  } else if (game.state === 'menu'){
+    game.cam.x += dt * 26; game.cam.y += dt * 9;
+  }
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+const hudEl   = document.getElementById('hud');
+const stageEl = document.getElementById('stageName');
+const massEl  = document.getElementById('massVal');
+const fillEl  = document.getElementById('fill');
+const cometEl = document.getElementById('cometCount');
+const hintEl  = document.getElementById('hint');
+
+function fmtMass(m){
+  if (m < 1000) return m.toFixed(0);
+  if (m < 1e6)  return (m/1000).toFixed(1)+'K';
+  if (m < 1e9)  return (m/1e6).toFixed(2)+'M';
+  return (m/1e9).toFixed(2)+'G';
+}
+
+function updateHUD(){
+  const p = game.player;
+  const si = p.stage;
+  stageEl.textContent = STAGES[si].name;
+  massEl.textContent  = fmtMass(p.mass);
+
+  const orbitingCount = game.comets.filter(c => c.state === 'orbit').length;
+  cometEl.textContent = `环绕彗星: ${orbitingCount}`;
+
+  const next = STAGES[si+1];
+  if (next){
+    const prev = STAGES[si].min;
+    const k = clamp((p.mass - prev) / (next.min - prev), 0, 1);
+    fillEl.style.width = (k*100).toFixed(1) + '%';
+  } else {
+    fillEl.style.width = '100%';
+  }
+
+  if (game.playTime > 7 && hintEl.style.opacity !== '0'){
+    hintEl.style.opacity = '0';
+  }
+}
+
+const overlayEl = document.getElementById('overlay');
+const menuView  = document.getElementById('menuView');
+const overView  = document.getElementById('overView');
+const resultEl  = document.getElementById('result');
+
+function showMenu(){
+  menuView.style.display = '';
+  overView.style.display = 'none';
+  overlayEl.classList.remove('hide');
+}
+
+function showOver(){
+  const p = game.player;
+  menuView.style.display = 'none';
+  overView.style.display = '';
+  overlayEl.classList.remove('hide');
+
+  resultEl.innerHTML = `
+    <span class="big">${STAGES[p.stage].name}</span>
+    终焉质量 ${fmtMass(p.mass)}<br>
+    存续时间 ${game.playTime.toFixed(1)} 秒<br>
+    最高阶段 ${STAGES[game.maxStage].name}
+  `;
+  resultEl.classList.remove('fadeIn');
+  void resultEl.offsetWidth;
+  resultEl.classList.add('fadeIn');
+}
+
+function beginGame(){
+  overlayEl.classList.add('hide');
+  hudEl.classList.add('on');
+  hintEl.style.opacity = '1';
+  // 重置触摸状态，防止上一局的触摸点影响新一局
+  isPointerDown = false;
+  activePointerId = null;
+  game.touchIndicator.active = false;
+  game.mouse.sx = W/2;
+  game.mouse.sy = H/2;
+  resetGame();
+}
+
+document.getElementById('startBtn').addEventListener('click', beginGame);
+document.getElementById('againBtn').addEventListener('click', beginGame);
+
+resize();
+preloadTextures();
+showMenu();
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>

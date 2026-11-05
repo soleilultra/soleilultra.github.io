@@ -524,7 +524,8 @@
         let W = 0, H = 0, DPR = 1;
 
         function resize() {
-            DPR = Math.min(window.devicePixelRatio || 1, 2);
+            const maxDPR = window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2;
+            DPR = Math.min(window.devicePixelRatio || 1, maxDPR);
             W = window.innerWidth; H = window.innerHeight;
             cv.width = Math.floor(W * DPR);
             cv.height = Math.floor(H * DPR);
@@ -1967,12 +1968,23 @@
             });
         }
 
+        function addNpcCollisionShake(x, y) {
+            const p = game.player;
+            if (!p || !game.cam.zoom) return;
+
+            const dx = x - p.x, dy = y - p.y;
+            const viewR = Math.max(W, H) / (2 * game.cam.zoom);
+            const falloff = clamp(1 - Math.hypot(dx, dy) / (viewR * 1.6), 0, 1);
+            if (falloff > 0) game.shake = Math.max(game.shake, 4 * falloff);
+        }
+
         function devourDirect(victim, devourer, isPlayerDevourer) {
             victim.dead = true;
             devourer.mass += victim.mass * 0.95;
             devourer.r = radiusOf(devourer.mass);
             evolveEntity(devourer, stageOf(devourer.mass));
             if (isPlayerDevourer) devourer.pulse = 1;
+            else addNpcCollisionShake(victim.x, victim.y);
             addSparks(victim.x, victim.y, victim.color, 12);
         }
 
@@ -1982,15 +1994,16 @@
             victim.dead = true;
             if (isPlayerDevourer) {
                 game.shake = Math.min(game.shake + victim.r * 0.10, 5);
-            }
+            } else addNpcCollisionShake((victim.x + devourer.x) / 2, (victim.y + devourer.y) / 2);
             game.events.push(new TidalEvent(victim, devourer, isPlayerDevourer));
         }
 
         function mutualDestruction(a, b) {
             a.dead = true; b.dead = true;
-            game.events.push(new MutualCrashEvent((a.x + b.x) / 2, (a.y + b.y) / 2, Math.max(a.r, b.r), a.color, b.color));
-            game.shake = Math.min(game.shake + 8, 12);
-            addSparks((a.x + b.x) / 2, (a.y + b.y) / 2, '#ffaa44', 40);
+            const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+            game.events.push(new MutualCrashEvent(x, y, Math.max(a.r, b.r), a.color, b.color));
+            addNpcCollisionShake(x, y);
+            addSparks(x, y, '#ffaa44', 40);
         }
 
         function checkEnemyCollisions() {
@@ -2004,8 +2017,8 @@
                     if (b.dead) continue;
 
                     const dx = b.x - a.x, dy = b.y - a.y;
-                    const d = Math.hypot(dx, dy);
-                    if (d > a.r + b.r) continue;
+                    const collisionR = a.r + b.r;
+                    if (dx * dx + dy * dy > collisionR * collisionR) continue;
 
                     const ratio = a.mass / b.mass;
                     if (ratio > CAN_TEAR_RATIO) {
@@ -2588,7 +2601,7 @@
             resetStick();
 
             if (NEXT_PAGE_URL) {
-                setTimeout(navigateToNextPage, 900);
+                setTimeout(navigateToNextPage, 1600);
             } else {
                 game.state = 'next';
             }

@@ -215,6 +215,28 @@
             touch-action: manipulation;
         }
 
+        #menuView {
+            text-align: center;
+        }
+
+        #menuView #startBtn {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .menu-quote {
+            display: block;
+            width: min(520px, 90vw);
+            max-width: 520px;
+            min-height: 1.8em;
+            margin: clamp(12px, 2.5vh, 20px) auto 0;
+            color: rgba(190, 215, 255, .86);
+            font-size: clamp(11px, 2.8vw, 13px);
+            line-height: 1.8;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
             .btn:hover, .btn:active {
                 background: rgba(80,160,255,.28);
                 border-color: #7cc4ff;
@@ -362,7 +384,8 @@
                     <br>
                     <b>行星 → 恒星 → 中子星 → 黑洞</b>
             </div>
-            <button class="btn" id="startBtn">开 始 演 化</button>
+            <button class="btn" id="startBtn" type="button">开 始 演 化</button>
+            <div class="menu-quote" id="menuQuote" aria-live="polite">微小的起点，也能走向辽阔的星海。</div>
         </div>
         <div id="overView" style="display:none">
             <div class="over-title" id="overTitle">天下英雄如过江之鲫</div>
@@ -469,10 +492,10 @@
                 { label: '开普勒-20b', color: '#a06848', glow: '#603020', tex: 'venus' },
             ],
             [
-                { label: '木星', color: '#c8a878', glow: '#7a5838', tex: 'jupiter' },
-                { label: '土星', color: '#d8c088', glow: '#8a7048', tex: 'saturn' },
-                { label: '天王星', color: '#88c8d8', glow: '#408090', tex: 'iceGiant' },
-                { label: '海王星', color: '#4868c8', glow: '#203878', tex: 'iceGiant' },
+                { label: '木星', color: '#c8a878', glow: '#7a5838', tex: 'jupiter', ring: 'faint' },
+                { label: '土星', color: '#d8c088', glow: '#8a7048', tex: 'saturn', ring: 'saturn' },
+                { label: '天王星', color: '#88c8d8', glow: '#408090', tex: 'iceGiant', ring: 'ice' },
+                { label: '海王星', color: '#4868c8', glow: '#203878', tex: 'iceGiant', ring: 'ice' },
                 { label: 'HD 189733b', color: '#3a68a8', glow: '#1a3868', tex: 'iceGiant' },
                 { label: 'WASP-12b', color: '#a06848', glow: '#603020', tex: 'jupiter' },
                 { label: '格利泽436b', color: '#3a7898', glow: '#1a3858', tex: 'iceGiant' },
@@ -524,7 +547,7 @@
         let W = 0, H = 0, DPR = 1;
 
         function resize() {
-            const maxDPR = window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2;
+            const maxDPR = 2;
             DPR = Math.min(window.devicePixelRatio || 1, maxDPR);
             W = window.innerWidth; H = window.innerHeight;
             cv.width = Math.floor(W * DPR);
@@ -559,9 +582,9 @@
         let NEBULAS = [];
         function buildNebula() {
             const palette = [
-                ['rgba(70,40,140,0.30)', 'rgba(20,10,60,0)'],
-                ['rgba(20,60,130,0.26)', 'rgba(5,15,45,0)'],
-                ['rgba(120,30,90,0.20)', 'rgba(40,5,30,0)'],
+                ['rgba(70,40,140,0.20)', 'rgba(20,10,60,0)'],
+                ['rgba(20,60,130,0.18)', 'rgba(5,15,45,0)'],
+                ['rgba(120,30,90,0.14)', 'rgba(40,5,30,0)'],
             ];
             NEBULAS = [];
             for (let i = 0; i < 3; i++) {
@@ -1321,6 +1344,7 @@
                 this.spawnAccum = 0;
                 this.massPool = victim.mass;
                 this.massRate = victim.mass / 1.4;
+                this.absorbDelay = 0.32;
                 this.baseRGB = hexToRGB(victim.color);
                 this.shock = 1.0;
             }
@@ -1351,6 +1375,7 @@
             }
 
             update(dt) {
+                const previousAge = this.age;
                 this.age += dt;
                 const progress = clamp(this.age / this.duration, 0, 1);
                 this.disruptionProgress = progress;
@@ -1362,7 +1387,8 @@
                 this.stretchRatio = 1.0 + rocheForce * 3.5 + progress * 2.0;
                 this.heat = clamp(rocheForce * 1.5 + progress * 1.2, 0, 1);
 
-                const tr = Math.min(this.massPool, this.massRate * dt);
+                const absorbDt = Math.max(0, this.age - this.absorbDelay) - Math.max(0, previousAge - this.absorbDelay);
+                const tr = Math.min(this.massPool, this.massRate * absorbDt);
                 if (tr > 0) {
                     this.devourer.mass += tr;
                     this.massPool -= tr;
@@ -1473,6 +1499,31 @@
                     drawBody(0, 0, this.baseR, this.stageIdx, this.variant, this.age * 3);
                     ctx.restore();
                 }
+
+                if (this.disruptionProgress > 0.04 && this.disruptionProgress < 0.96) {
+                    const axisX = Math.cos(this.angle), axisY = Math.sin(this.angle);
+                    const sideX = -axisY, sideY = axisX;
+                    const startX = dev.x + axisX * dev.r * 1.02;
+                    const startY = dev.y + axisY * dev.r * 1.02;
+                    const tearLength = this.baseR * (0.55 + this.disruptionProgress * 0.35);
+
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.lineCap = 'round';
+                    ctx.lineWidth = Math.max(1.2, this.baseR * (0.04 + this.heat * 0.05));
+                    ctx.strokeStyle = `rgba(255,190,115,${0.25 + this.heat * 0.55})`;
+                    for (const side of [-1, 1]) {
+                        const endX = bodyX - axisX * tearLength + sideX * this.baseR * 0.16 * side;
+                        const endY = bodyY - axisY * tearLength + sideY * this.baseR * 0.16 * side;
+                        const midX = (startX + endX) * 0.5 + sideX * this.baseR * 0.3 * side;
+                        const midY = (startY + endY) * 0.5 + sideY * this.baseR * 0.3 * side;
+                        ctx.beginPath();
+                        ctx.moveTo(startX + sideX * this.baseR * 0.12 * side, startY + sideY * this.baseR * 0.12 * side);
+                        ctx.quadraticCurveTo(midX, midY, endX, endY);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
             }
         }
 
@@ -1550,7 +1601,8 @@
         function shatterEnemyIntoFrags(e) {
             e.dead = true;
             game.events.push(new MutualCrashEvent(e.x, e.y, e.r, '#ff3333', e.color));
-            game.shake = Math.min(game.shake + 6, 10);
+            addNpcCollisionShake(e.x, e.y);
+            addCollisionRipple(e.x, e.y, e.r, e.color || '#ff4444');
 
             if (game.enemies.length > 220) return;
 
@@ -1974,8 +2026,16 @@
 
             const dx = x - p.x, dy = y - p.y;
             const viewR = Math.max(W, H) / (2 * game.cam.zoom);
-            const falloff = clamp(1 - Math.hypot(dx, dy) / (viewR * 1.6), 0, 1);
-            if (falloff > 0) game.shake = Math.max(game.shake, 4 * falloff);
+            const falloff = clamp(1 - Math.hypot(dx, dy) / (viewR * 2), 0, 1);
+            if (falloff > 0) game.shake = Math.max(game.shake, 8 * falloff);
+        }
+
+        function addCollisionRipple(x, y, r, color) {
+            const size = Math.max(8, r);
+            game.ripples.push({
+                x, y, r: size * 0.45, max: size * 2.5,
+                life: 0.9, color: color || '#9ae6ff'
+            });
         }
 
         function devourDirect(victim, devourer, isPlayerDevourer) {
@@ -1986,15 +2046,19 @@
             if (isPlayerDevourer) devourer.pulse = 1;
             else addNpcCollisionShake(victim.x, victim.y);
             addSparks(victim.x, victim.y, victim.color, 12);
+            addCollisionRipple(victim.x, victim.y, victim.r, victim.color);
         }
 
         const CAN_TEAR_RATIO = 1.3;
 
         function startTidalDisruption(victim, devourer, isPlayerDevourer) {
             victim.dead = true;
+            const x = (victim.x + devourer.x) / 2, y = (victim.y + devourer.y) / 2;
             if (isPlayerDevourer) {
                 game.shake = Math.min(game.shake + victim.r * 0.10, 5);
-            } else addNpcCollisionShake((victim.x + devourer.x) / 2, (victim.y + devourer.y) / 2);
+            } else addNpcCollisionShake(x, y);
+            addCollisionRipple(x, y, victim.r, victim.color);
+            addSparks(x, y, victim.color || '#ffcc88', 24);
             game.events.push(new TidalEvent(victim, devourer, isPlayerDevourer));
         }
 
@@ -2003,6 +2067,7 @@
             const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
             game.events.push(new MutualCrashEvent(x, y, Math.max(a.r, b.r), a.color, b.color));
             addNpcCollisionShake(x, y);
+            addCollisionRipple(x, y, Math.max(a.r, b.r), '#ffaa44');
             addSparks(x, y, '#ffaa44', 40);
         }
 
@@ -2052,6 +2117,7 @@
 
             game.shake = 12;
             game.events.push(new MutualCrashEvent((p.x + e.x) / 2, (p.y + e.y) / 2, Math.max(p.r, e.r), '#4a80c0', e.color || '#ff3333'));
+            addCollisionRipple((p.x + e.x) / 2, (p.y + e.y) / 2, Math.max(p.r, e.r), e.color || '#ff3333');
 
             const dx = p.x - e.x, dy = p.y - e.y;
             const angle = Math.atan2(dy, dx);
@@ -2107,7 +2173,7 @@
             const zoom = game.cam.zoom;
 
             // 屏幕速度恒定：zoom 越小（体型越大），世界速度越大
-            const maxSpeed = 190 / zoom;
+            const maxSpeed = 171 / zoom;
             const acc = Math.min(1, dt * 6.0);
 
             let tvx = 0, tvy = 0, hasInput = false;
@@ -2194,6 +2260,7 @@
                             '#ff3333', e.color || '#4a80c0'
                         ));
                         game.shake = 16;
+                        addCollisionRipple(p.x, p.y, Math.max(p.r, e.r), '#ff4444');
                         addSparks(p.x, p.y, '#ffaa44', 60);
                         gameOver();
                         return;
@@ -2210,7 +2277,7 @@
                     e.angle += e.spin * dt;
                     const dampD = Math.pow(0.55, dt);
                     e.vx *= dampD; e.vy *= dampD;
-                    e.x += e.vx * dt; e.y += e.vy * dt;
+                    e.x += e.vx * dt * 0.9; e.y += e.vy * dt * 0.9;
                     if (d > viewR * 4.5) game.enemies.splice(i, 1);
                     continue;
                 }
@@ -2264,7 +2331,7 @@
 
                 const damp = Math.pow(0.78, dt);
                 e.vx *= damp; e.vy *= damp;
-                e.x += e.vx * dt; e.y += e.vy * dt;
+                e.x += e.vx * dt * 0.9; e.y += e.vy * dt * 0.9;
                 e.angle += e.spin * dt;
 
                 if (d > viewR * 2.8) game.enemies.splice(i, 1);
@@ -2676,12 +2743,52 @@
             ctx.restore();
         }
 
+        function drawPlanetRing(x, y, r, rot, type, front) {
+            const outer = r * 2.15;
+            const inner = r * 1.22;
+            const bands = type === 'saturn'
+                ? [
+                    [1.38, 0.12, 'rgba(230,211,164,0.82)'],
+                    [1.60, 0.08, 'rgba(116,98,68,0.72)'],
+                    [1.78, 0.14, 'rgba(219,197,146,0.78)'],
+                    [2.02, 0.08, 'rgba(156,132,91,0.70)'],
+                ]
+                : [
+                    [1.48, 0.08, type === 'ice' ? 'rgba(176,218,232,0.42)' : 'rgba(206,184,145,0.34)'],
+                    [1.88, 0.06, type === 'ice' ? 'rgba(190,226,238,0.34)' : 'rgba(220,201,168,0.28)'],
+                ];
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot * 0.08 + 0.28);
+            ctx.scale(1, type === 'saturn' ? 0.28 : 0.2);
+            ctx.beginPath();
+            ctx.rect(-outer, front ? 0 : -outer, outer * 2, outer);
+            ctx.clip();
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, outer, outer, 0, 0, TAU);
+            ctx.ellipse(0, 0, inner, inner, 0, 0, TAU);
+            ctx.fillStyle = type === 'saturn' ? 'rgba(188,163,116,0.58)' : 'rgba(170,198,210,0.16)';
+            ctx.fill('evenodd');
+
+            for (const [radius, width, color] of bands) {
+                ctx.beginPath();
+                ctx.ellipse(0, 0, r * radius, r * radius, 0, 0, TAU);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = r * width;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
         function drawBody(x, y, r, stageIdx, variantIdx, rot) {
             if (r < 0.35) return;
             const stage = STAGES[stageIdx];
             const variant = CATALOG[stageIdx][variantIdx] || CATALOG[stageIdx][0];
 
             if (stage.type === 'blackhole') { drawBlackHole(x, y, r, rot); return; }
+            if (variant.ring && r >= 6) drawPlanetRing(x, y, r, rot, variant.ring, false);
 
             if (stage.type === 'star' || stage.type === 'neutron') {
                 const pulse = 1 + Math.sin(game.time * 2.2 + x * 0.005) * 0.06;
@@ -2722,6 +2829,7 @@
             ctx.fillStyle = 'rgba(255,255,255,0.12)';
             ctx.beginPath(); ctx.ellipse(x - r * 0.33, y - r * 0.34, r * 0.32, r * 0.20, -0.72, 0, TAU); ctx.fill();
             ctx.restore();
+            if (variant.ring) drawPlanetRing(x, y, r, rot, variant.ring, true);
         }
 
         function drawLabels() {
@@ -3095,10 +3203,19 @@
         const overView = document.getElementById('overView');
         const resultEl = document.getElementById('result');
         const overTitleEl = document.getElementById('overTitle');
+        const menuQuoteEl = document.getElementById('menuQuote');
+        const menuQuotes = [
+            '微小的起点，也能走向辽阔的星海。',
+            '每一次探索，都会点亮新的方向。',
+            '坚持前行，终会抵达属于你的轨道。',
+            '从一粒尘埃开始，也能拥抱星辰。',
+            '不必一开始就耀眼，持续前进就是光。'
+        ];
 
         function showMenu() {
             menuView.style.display = '';
             overView.style.display = 'none';
+            menuQuoteEl.textContent = menuQuotes[Math.floor(Math.random() * menuQuotes.length)];
             overlayEl.classList.remove('poem-mode');
             overlayEl.classList.remove('dim');
             overlayEl.classList.remove('hide');
@@ -3165,9 +3282,13 @@
         document.getElementById('againBtn').addEventListener('click', beginGame);
 
         resize();
-        preloadTextures();
         showMenu();
         requestAnimationFrame(loop);
+        try {
+            preloadTextures();
+        } catch (error) {
+            console.error('Texture preload failed:', error);
+        }
     </script>
 </body>
 </html>

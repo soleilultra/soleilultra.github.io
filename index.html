@@ -1717,7 +1717,7 @@
         }
 
         class DangerMeteor {
-            constructor(startX, startY, targetX, targetY) {
+            constructor(startX, startY, targetX, targetY, speedScale = 1) {
                 this.startX = startX; this.startY = startY;
                 this.targetX = targetX; this.targetY = targetY;
                 this.x = startX; this.y = startY;
@@ -1741,7 +1741,7 @@
                 const dx = targetX - startX, dy = targetY - startY;
                 const dist = Math.hypot(dx, dy) || 1;
                 this.angle = Math.atan2(dy, dx);
-                this.speed = rand(800, 1200);
+                this.speed = rand(1200, 1700) * speedScale;
                 this.vx = (dx / dist) * this.speed;
                 this.vy = (dy / dist) * this.speed;
                 const pathRoll = Math.random();
@@ -1751,6 +1751,9 @@
                 this.trail = [];
                 this.maxTrail = Math.floor(rand(16, 26));
                 this.penetrationCount = 0;
+                this.penetrates = Math.random() < 0.28;
+                this.hitTargets = [];
+                this.hitTargetCount = 0;
                 this.mass = this.r * this.r * rand(10, 20);
             }
 
@@ -1772,64 +1775,66 @@
                     this.vy = vx * sinTurn + vy * cosTurn;
                     this.angle = Math.atan2(this.vy, this.vx);
                 }
-                this.x += this.vx * dt;
-                this.y += this.vy * dt;
+                const nextX = this.x + this.vx * dt;
+                const nextY = this.y + this.vy * dt;
 
                 const p = game.player;
-                const playerDx = p.x - this.x, playerDy = p.y - this.y;
-                if (playerDx * playerDx + playerDy * playerDy < (p.r + this.r) * (p.r + this.r)) {
-                    if ((p.invulnerableTimer || 0) > 0) {
-                        if (this.r >= p.r * 0.72) {
-                            fragmentPlanet(p, this.x, this.y, this.vx, this.vy, this.mass, false);
-                        } else {
-                            p.mass += this.mass * 0.9;
-                            p.r = radiusOf(p.mass);
-                            evolveEntity(p, stageOf(p.mass));
-                            p.pulse = 1;
-                            addSparks(this.x, this.y, '#ffb36b', 14);
-                            addCollisionRipple(this.x, this.y, this.r, '#ffb36b');
-                        }
-                        this.dead = true;
-                        return;
-                    }
+                const playerDx = p.x - nextX, playerDy = p.y - nextY;
+                if (!this.containsHitTarget(p) && playerDx * playerDx + playerDy * playerDy < (p.r + this.r) * (p.r + this.r)) {
                     const impactMass = this.mass + p.mass * Math.min(0.24, this.speed / 6500);
                     const violent = this.r >= p.r * 0.72;
                     if (violent && impactMass >= p.mass * 2.2) {
-                        this.dead = true;
-                        fragmentPlanet(p, this.x, this.y, this.vx, this.vy, impactMass, true);
+                        fragmentPlanet(p, nextX, nextY, this.vx, this.vy, impactMass, !this.penetrates);
                         game.shake = 16;
-                        gameOver();
+                        if (!this.penetrates) {
+                            gameOver();
+                            this.dead = true;
+                            return;
+                        }
+                    } else if (violent) {
+                        if (this.penetrates) fragmentPlanet(p, nextX, nextY, this.vx, this.vy, impactMass, false);
+                        else triggerPlayerShatter(p, { x: nextX, y: nextY, r: this.r, color: '#ff9a4c', vx: this.vx, vy: this.vy, mass: impactMass });
+                    } else {
+                        fragmentPlanet(p, nextX, nextY, this.vx, this.vy, impactMass, false);
+                    }
+                    if (!this.penetrates) {
+                        this.dead = true;
                         return;
                     }
-                    if (violent) {
-                        triggerPlayerShatter(p, { x: this.x, y: this.y, r: this.r, color: '#ff9a4c', vx: this.vx, vy: this.vy, mass: impactMass });
-                    } else {
-                        fragmentPlanet(p, this.x, this.y, this.vx, this.vy, impactMass, false);
-                    }
-                    this.dead = true;
-                    return;
+                this.hitTargets[this.hitTargetCount++] = p;
                 }
 
                 for (const target of game.enemies) {
-                    if (!target || target.dead) continue;
-                    const dx = target.x - this.x, dy = target.y - this.y;
+                    if (!target || target.dead || this.containsHitTarget(target)) continue;
+                    const dx = target.x - nextX, dy = target.y - nextY;
                     if (dx * dx + dy * dy >= (target.r + this.r) * (target.r + this.r)) continue;
 
                     const impactMass = this.mass + target.mass * Math.min(0.24, this.speed / 6500);
                     const violent = this.r >= target.r * 0.72;
-                    fragmentPlanet(target, this.x, this.y, this.vx, this.vy, impactMass, violent);
+                    fragmentPlanet(target, nextX, nextY, this.vx, this.vy, impactMass, violent);
                     this.penetrationCount++;
-                    if (this.r < target.r * 0.8 || this.penetrationCount >= 3) {
+                    this.hitTargets[this.hitTargetCount++] = target;
+                    if (!this.penetrates) {
                         this.dead = true;
-                        break;
+                        return;
                     }
                 }
+
+                this.x = nextX;
+                this.y = nextY;
 
                 this.trail.unshift({ x: this.x, y: this.y });
                 if (this.trail.length > this.maxTrail) this.trail.pop();
 
                 const viewR = Math.max(W, H) / (2 * game.cam.zoom);
                 if (Math.hypot(this.x - p.x, this.y - p.y) > viewR * 3.5) this.dead = true;
+            }
+
+            containsHitTarget(target) {
+                for (let i = 0; i < this.hitTargetCount; i++) {
+                    if (this.hitTargets[i] === target) return true;
+                }
+                return false;
             }
 
             draw() {
@@ -1916,7 +1921,9 @@
                 targetY = p.y + rand(-scatterR, scatterR);
             }
 
-            game.meteors.push(new DangerMeteor(startX, startY, targetX, targetY));
+            const meteor = new DangerMeteor(startX, startY, targetX, targetY, showerPattern ? rand(1.7, 2.0) : 1);
+            meteor.isShower = !!showerPattern;
+            game.meteors.push(meteor);
         }
 
         class Comet {
@@ -2062,7 +2069,6 @@
                 x: 0, y: 0, vx: 0, vy: 0,
                 mass: INITIAL_MASS,
                 r: radiusOf(INITIAL_MASS),
-                invulnerableTimer: 3,
                 angle: 0,
                 stage: 0,
                 variant: 0,
@@ -2159,14 +2165,12 @@
 
             const spawnX = p.x + Math.cos(ang) * dist;
             const spawnY = p.y + Math.sin(ang) * dist;
-            const crossTargetX = p.x + rand(-baseR * 0.5, baseR * 0.5);
-            const crossTargetY = p.y + rand(-baseR * 0.5, baseR * 0.5);
-            const toP = Math.atan2(crossTargetY - spawnY, crossTargetX - spawnX);
-            const spd = rand(20, 50);
+            const driftAngle = Math.random() * TAU;
+            const spd = rand(12, 38);
 
             game.enemies.push({
                 x: spawnX, y: spawnY,
-                vx: Math.cos(toP) * spd, vy: Math.sin(toP) * spd,
+                vx: Math.cos(driftAngle) * spd, vy: Math.sin(driftAngle) * spd,
                 mass, r, stage,
                 variant: variantIdx,
                 label: variant.label,
@@ -2355,7 +2359,7 @@
             const zoom = game.cam.zoom;
 
             // 屏幕速度恒定：zoom 越小（体型越大），世界速度越大
-            const maxSpeed = 145 / zoom;
+            const maxSpeed = 105 / zoom;
             const acc = Math.min(1, dt * 6.0);
 
             let tvx = 0, tvy = 0, hasInput = false;
@@ -2373,7 +2377,7 @@
                 const d = Math.hypot(ox, oy);
 
                 if (d > 5) {
-                    const sens = 1.6;
+                    const sens = 1.25;
                     tvx = (ox / d) * maxSpeed * sens;
                     tvy = (oy / d) * maxSpeed * sens;
                     hasInput = true;          // ★ 关键：以前漏了这一行
@@ -2390,7 +2394,6 @@
             }
 
             p.x += p.vx * dt; p.y += p.vy * dt;
-            p.invulnerableTimer = Math.max(0, (p.invulnerableTimer || 0) - dt);
             p.angle += dt * 0.55;
             p.r = radiusOf(p.mass);
             p.pulse *= Math.pow(0.02, dt);
@@ -2427,19 +2430,6 @@
                 if (d > viewR * 1.5) continue;
 
                 if (d < p.r + e.r) {
-                    if ((p.invulnerableTimer || 0) > 0) {
-                        if (p.mass > e.mass * CAN_TEAR_RATIO) {
-                            devourDirect(e, p, true);
-                        } else {
-                            const nx = -dx / d, ny = -dy / d;
-                            const separation = p.r + e.r - d + 2;
-                            e.x += nx * separation;
-                            e.y += ny * separation;
-                            e.vx += nx * 90;
-                            e.vy += ny * 90;
-                        }
-                        continue;
-                    }
                     if (stageOf(p.mass) >= 10 && stageOf(e.mass) >= 10) {
                         startFinale(e);
                         return;
@@ -2494,10 +2484,10 @@
                         targetX = dx / d;
                         targetY = dy / d;
                         urgency = 1.0;
-                    } else if (d < viewR * 1.25 && playerCanEat) {
+                    } else if (d < viewR * 1.25 && playerCanEat && e.aiMode === 'orbit') {
                         targetX = -dx / d;
                         targetY = -dy / d;
-                        urgency = 0.95;
+                        urgency = 0.48;
                     } else {
                         let bestPreyDist2 = viewR * viewR * 0.72;
                         let prey = null;
@@ -2545,9 +2535,9 @@
                     e.aiTimer = rand(0.8, 1.8);
                 }
 
-                const damp = Math.pow(0.78, dt);
+                const damp = Math.pow(0.72, dt);
                 e.vx *= damp; e.vy *= damp;
-                e.x += e.vx * dt * 0.75; e.y += e.vy * dt * 0.75;
+                e.x += e.vx * dt * 0.62; e.y += e.vy * dt * 0.62;
                 e.angle += e.spin * dt;
 
                 if (d > viewR * 2.8) game.enemies.splice(i, 1);

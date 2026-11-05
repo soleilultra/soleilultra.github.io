@@ -927,6 +927,35 @@
             }
         }
 
+        function makeTextureSeamlessX(g, S) {
+            const image = g.getImageData(0, 0, S, S);
+            const data = image.data;
+            const band = Math.max(2, Math.floor(S / 12));
+
+            for (let y = 0; y < S; y++) {
+                const row = y * S * 4;
+                const leftEdge = row;
+                const rightEdge = row + (S - 1) * 4;
+
+                for (let c = 0; c < 4; c++) {
+                    const seam = (data[leftEdge + c] + data[rightEdge + c]) * 0.5;
+
+                    for (let x = 0; x < band; x++) {
+                        const t = x / (band - 1);
+                        const left = row + x * 4 + c;
+                        const right = row + (S - band + x) * 4 + c;
+                        const leftValue = data[left];
+                        const rightValue = data[right];
+
+                        data[left] = seam + (leftValue - seam) * t;
+                        data[right] = rightValue * (1 - t) + seam * t;
+                    }
+                }
+            }
+
+            g.putImageData(image, 0, 0);
+        }
+
         function getTex(stageIdx, variantIdx) {
             const key = stageIdx + '_' + variantIdx;
             let t = texCache.get(key);
@@ -937,6 +966,7 @@
             c.width = c.height = S;
             const g = c.getContext('2d');
             paintTexture(g, S, variant.tex, variant.color, stageIdx * 7919 + variantIdx * 1337 + 11);
+            makeTextureSeamlessX(g, S);
             texCache.set(key, c);
             return c;
         }
@@ -1838,7 +1868,7 @@
             game.events = [];
             game.sparks = [];
             game.ripples = [];
-            game.cam = { x: 0, y: 0, zoom: clamp(80 / p.r, 0.05, 1.15) };
+            game.cam = { x: 0, y: 0, zoom: clamp((W < 700 ? 52 : 80) / p.r, 0.05, 1.15) };
             game.playTime = 0;
             game.shake = 0;
             game.spawnTimer = 0;
@@ -2040,7 +2070,7 @@
 
         function updateCamera(dt) {
             const p = game.player;
-            const targetZoom = clamp(80 / p.r, 0.05, 1.15);
+            const targetZoom = clamp((W < 700 ? 52 : 80) / p.r, 0.05, 1.15);
 
             const lookX = p.x + p.vx * 0.12;
             const lookY = p.y + p.vy * 0.12;

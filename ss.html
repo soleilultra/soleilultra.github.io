@@ -1,259 +1,94 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>GALAXY - 双星合并终章演示</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:100%;height:100vh;overflow:hidden;background:#020308;font-family:sans-serif;}
-  canvas{display:block;position:fixed;inset:0;width:100%;height:100%;}
-  #btn{
-    position:fixed;bottom:40px;left:50%;transform:translateX(-50%);
-    z-index:100;padding:12px 30px;font-size:16px;color:#fff;
-    background:rgba(80,160,255,0.25);border:1px solid #7cc4ff;
-    border-radius:6px;cursor:pointer;backdrop-filter:blur(4px);
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#020308">
+  <title>GALAXY · 再来一局</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 24px;
+      color: #dbe9ff;
+      background: radial-gradient(ellipse at 50% 42%, #14264a 0%, #080d1b 42%, #020308 78%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .45;
+      background-image: radial-gradient(1px 1px at 12% 22%, #d8e8ff 55%, transparent), radial-gradient(1px 1px at 78% 18%, #d8e8ff 55%, transparent), radial-gradient(1.5px 1.5px at 65% 74%, #9bc8ff 55%, transparent), radial-gradient(1px 1px at 28% 82%, #fff 55%, transparent), radial-gradient(1px 1px at 90% 62%, #fff 55%, transparent);
+      background-size: 260px 230px;
+    }
+    main { position: relative; width: min(100%, 460px); text-align: center; }
+    .eyebrow { color: rgba(150, 195, 255, .62); font-size: 11px; letter-spacing: 5px; }
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(32px, 9vw, 48px);
+      font-weight: 300;
+      letter-spacing: 8px;
+      text-indent: 8px;
+      background: linear-gradient(180deg, #fff, #71b8ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 32px rgba(100, 170, 255, .2);
+    }
+    p { margin: 0 0 34px; color: rgba(185, 210, 250, .68); font-size: 14px; line-height: 1.9; }
+    button {
+      width: min(100%, 360px);
+      min-height: 82px;
+      padding: 14px 22px;
+      border: 1px solid rgba(125, 190, 255, .62);
+      border-radius: 8px;
+      color: #eef7ff;
+      background: linear-gradient(135deg, rgba(42, 105, 190, .34), rgba(75, 120, 210, .16));
+      box-shadow: 0 0 32px rgba(65, 145, 255, .14), inset 0 0 22px rgba(120, 185, 255, .06);
+      cursor: pointer;
+      font: inherit;
+      touch-action: manipulation;
+      transition: background .2s, box-shadow .2s, transform .2s;
+    }
+    button:hover, button:active { background-color: rgba(80, 150, 255, .28); box-shadow: 0 0 38px rgba(80, 170, 255, .34); transform: translateY(-2px); }
+    button span, button small { display: block; }
+    button span { font-size: 17px; letter-spacing: 4px; text-indent: 4px; }
+    button small { margin-top: 8px; color: rgba(190, 220, 255, .78); font-size: 12px; letter-spacing: .5px; }
+    .foot { margin-top: 22px; color: rgba(145, 175, 220, .4); font-size: 11px; letter-spacing: 1px; }
+  </style>
 </head>
 <body>
-<canvas id="cv"></canvas>
-<button id="btn" onclick="restartFinale()">重新播放双星合并动画</button>
-
-<script>
-const cv = document.getElementById('cv');
-const ctx = cv.getContext('2d');
-let W = window.innerWidth, H = window.innerHeight;
-cv.width = W; cv.height = H;
-
-window.addEventListener('resize', ()=>{
-  W = window.innerWidth; H = window.innerHeight;
-  cv.width = W; cv.height = H;
-});
-
-const TAU = Math.PI * 2;
-
-// 双星系统核心状态
-let finale = null;
-let sparks = [];
-let ripples = [];
-
-function initFinale(){
-  sparks = [];
-  ripples = [];
-  
-  const r1 = 45; // 黑洞1半径
-  const r2 = 38; // 黑洞2半径
-  const D0 = 260; // 初始间距
-
-  finale = {
-    t: 0,
-    duration: 6.0, // 动画播放6秒
-    D: D0,
-    D0: D0,
-    theta: Math.random() * TAU,
-    p1: { x: 0, y: 0, r: r1, angle: 0 },
-    p2: { x: 0, y: 0, r: r2, angle: 0 },
-    phase: 'inspiral',
-    flash: 0
-  };
-}
-
-function update(dt){
-  if (!finale) return;
-  const f = finale;
-  
-  if (f.phase === 'inspiral'){
-    f.t += dt;
-    const k = Math.min(f.t / f.duration, 1);
-
-    // 1. 距离螺旋靠近
-    const minD = f.p1.r + f.p2.r + 10;
-    f.D = minD + (f.D0 - minD) * Math.pow(1 - k, 1.2);
-
-    // 2. 旋转角速度（越靠近转得越快，从慢到快）
-    const omega = 1.8 + 10.0 * Math.pow(k, 2);
-    f.theta += omega * dt;
-
-    // 3. 实时计算坐标
-    f.p1.x = W/2 + Math.cos(f.theta) * (f.D * 0.5);
-    f.p1.y = H/2 + Math.sin(f.theta) * (f.D * 0.5);
-    f.p2.x = W/2 - Math.cos(f.theta) * (f.D * 0.5);
-    f.p2.y = H/2 - Math.sin(f.theta) * (f.D * 0.5);
-
-    // 4. 自转
-    f.p1.angle += dt * 4;
-    f.p2.angle += dt * 5;
-
-    // 产生引力波涟漪
-    if (Math.random() < 0.3){
-      ripples.push({ x: W/2, y: H/2, r: f.D*0.4, maxR: f.D*2.5, life: 1.0 });
-    }
-
-    // 产生喷射粒子
-    if (Math.random() < 0.8){
-      const a = Math.random() * TAU;
-      sparks.push({
-        x: W/2 + Math.cos(a)*(f.D*0.5),
-        y: H/2 + Math.sin(a)*(f.D*0.5),
-        vx: -Math.sin(a) * (100 + k*300),
-        vy: Math.cos(a) * (100 + k*300),
-        life: 1.0, size: 2 + Math.random()*3
-      });
-    }
-
-    // 达到终点，碰撞合并
-    if (k >= 1){
-      f.phase = 'merger';
-      f.flash = 1.0;
-      f.mergerT = 0;
-      // 粒子大爆炸
-      for(let i=0; i<150; i++){
-        const a = Math.random() * TAU;
-        const sp = 50 + Math.random() * 400;
-        sparks.push({
-          x: W/2, y: H/2,
-          vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
-          life: 1.5, size: 3 + Math.random()*4
-        });
-      }
-    }
-  } else if (f.phase === 'merger'){
-    f.mergerT += dt;
-    f.flash = Math.max(0, f.flash - dt * 0.8);
-    f.p1.x = W/2; f.p1.y = H/2;
-    f.p1.r = 60; // 合并后的超级大黑洞
-    f.p1.angle += dt * 2;
-  }
-
-  // 更新粒子
-  for(let i=sparks.length-1; i>=0; i--){
-    const s = sparks[i];
-    s.x += s.vx * dt; s.y += s.vy * dt;
-    s.life -= dt * 1.5;
-    if (s.life <= 0) sparks.splice(i, 1);
-  }
-
-  // 更新涟漪
-  for(let i=ripples.length-1; i>=0; i--){
-    const r = ripples[i];
-    r.r += (r.maxR - r.r) * dt * 3;
-    r.life -= dt * 1.2;
-    if (r.life <= 0) ripples.splice(i, 1);
-  }
-}
-
-function drawBlackHole(x, y, r, rot){
-  ctx.save();
-  ctx.translate(x, y);
-
-  // 1. 吸积盘光晕
-  ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createRadialGradient(0, 0, r*0.5, 0, 0, r*3.5);
-  g.addColorStop(0, 'rgba(255, 210, 140, 0.9)');
-  g.addColorStop(0.3, 'rgba(255, 100, 30, 0.4)');
-  g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(0, 0, r*3.5, 0, TAU); ctx.fill();
-
-  // 2. 旋转吸积盘
-  ctx.save();
-  ctx.rotate(rot);
-  ctx.scale(1, 0.3);
-  const disk = ctx.createRadialGradient(0, 0, r*0.8, 0, 0, r*3.0);
-  disk.addColorStop(0, 'rgba(255,255,255,1)');
-  disk.addColorStop(0.4, 'rgba(255,150,50,0.8)');
-  disk.addColorStop(1, 'rgba(200,30,0,0)');
-  ctx.fillStyle = disk;
-  ctx.beginPath(); ctx.arc(0, 0, r*3.0, 0, TAU); ctx.fill();
-  ctx.restore();
-
-  // 3. 黑洞中心阴影 (事件视界)
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = '#000000';
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
-  
-  // 视界边缘光圈
-  ctx.strokeStyle = 'rgba(255,230,180,0.8)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function render(){
-  // 清屏背景
-  ctx.fillStyle = '#020308';
-  ctx.fillRect(0, 0, W, H);
-
-  if (!finale) return;
-  const f = finale;
-
-  // 绘制能量桥
-  if (f.phase === 'inspiral'){
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = 'rgba(140, 200, 255, 0.6)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(f.p1.x, f.p1.y);
-    ctx.lineTo(f.p2.x, f.p2.y);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // 绘制涟漪
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for(const r of ripples){
-    ctx.strokeStyle = `rgba(150, 200, 255, ${r.life * 0.5})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, TAU); ctx.stroke();
-  }
-  ctx.restore();
-
-  // 绘制黑洞
-  if (f.phase === 'inspiral'){
-    drawBlackHole(f.p1.x, f.p1.y, f.p1.r, f.p1.angle);
-    drawBlackHole(f.p2.x, f.p2.y, f.p2.r, f.p2.angle);
-  } else {
-    drawBlackHole(f.p1.x, f.p1.y, f.p1.r, f.p1.angle);
-  }
-
-  // 绘制火花粒子
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for(const s of sparks){
-    ctx.fillStyle = `rgba(255, 220, 160, ${s.life})`;
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, TAU); ctx.fill();
-  }
-  ctx.restore();
-
-  // 撞击闪光
-  if (f.flash > 0){
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = `rgba(255, 255, 255, ${f.flash})`;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  }
-}
-
-let last = performance.now();
-function loop(now){
-  const dt = Math.min((now - last)/1000, 0.05);
-  last = now;
-  update(dt);
-  render();
-  requestAnimationFrame(loop);
-}
-
-function restartFinale(){
-  initFinale();
-}
-
-initFinale();
-requestAnimationFrame(loop);
-</script>
+  <main>
+    <div class="eyebrow">A NEW ORBIT AWAITS</div>
+    <h1>星河未尽</h1>
+    <p>每一次重新启程，都是新的演化。</p>
+    <button id="replayBtn" type="button">
+      <span>再来一局</span>
+      <small id="quote" aria-live="polite"></small>
+    </button>
+    <div class="foot">点击按钮，回到宇宙起点</div>
+  </main>
+  <script>
+    const quotes = [
+      '别怕从微小开始，星辰也是如此。',
+      '穿过黑暗，仍要奔向自己的光。',
+      '每一次重来，都是新的可能。',
+      '沿着自己的轨道，终会抵达远方。',
+      '向前一点点，宇宙就更辽阔一点。',
+      '微光也有方向，慢慢走也会发亮。',
+      '把今天走好，明天就会更近一点。',
+      '即使暂时迷航，也别停止探索。'
+    ];
+    document.getElementById('quote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+    document.getElementById('replayBtn').addEventListener('click', () => {
+      window.location.href = new URL('galaxy.html', window.location.href).href;
+    });
+  </script>
 </body>
 </html>

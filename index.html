@@ -2687,6 +2687,7 @@
 
             const tex = getTex(stageIdx, variantIdx);
             const light = getLight();
+            const zoom = game.cam.zoom;
             const tw = 2 * r;
             let off = (rot * r * 0.55) % tw;
             if (off < 0) off += tw;
@@ -2694,7 +2695,7 @@
             ctx.save();
             ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip();
             ctx.drawImage(tex, x - r + off, y - r, tw, tw);
-            ctx.drawImage(tex, x - r + off - tw, y - r, tw, tw);
+            ctx.drawImage(tex, x - r + off - tw, y - r, tw + 1 / (DPR * zoom), tw);
             ctx.globalCompositeOperation = 'multiply';
             ctx.drawImage(light, x - r, y - r, tw, tw);
             ctx.globalCompositeOperation = 'source-over';

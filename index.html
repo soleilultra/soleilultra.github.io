@@ -219,6 +219,16 @@
             text-align: center;
         }
 
+        #overView {
+            width: min(100%, 560px);
+            text-align: center;
+        }
+
+        #overView #againBtn {
+            display: block;
+            margin: 0 auto;
+        }
+
         #menuView #startBtn {
             display: block;
             margin: 0 auto;
@@ -300,6 +310,17 @@
                 transform: none
             }
         }
+
+                if (dist < p.r + this.r * 0.5 && (p.invulnerableTimer || 0) > 0) {
+                    this.dead = true;
+                    p.mass += 150;
+                    p.r = radiusOf(p.mass);
+                    syncPlayerStage(p);
+                    p.pulse = 1;
+                    addSparks(this.x, this.y, '#90e0ff', 12);
+                    addCollisionRipple(this.x, this.y, this.r, '#90e0ff');
+                    return;
+                }
 
         @media (hover:none) and (pointer:coarse) {
             .hint-desktop {
@@ -1336,7 +1357,7 @@
                 this.stageIdx = victim.stage;
                 this.variant = victim.variant;
                 this.age = 0;
-                this.duration = 1.8;
+                this.duration = isPlayerDevourer ? 2.4 : 1.8;
                 this.stretchRatio = 1.0;
                 this.heat = 0.0;
                 this.disruptionProgress = 0;
@@ -1381,14 +1402,15 @@
                 this.disruptionProgress = progress;
                 const spiralFactor = Math.pow(progress, 0.85);
                 this.dist = lerp(this.orbitRadius, this.devourer.r * 0.4, spiralFactor);
-                this.angle += (1.8 + progress * 2.5) * dt;
 
                 const rocheForce = Math.pow(1 - clamp(this.dist / (this.devourer.r * 4), 0, 1), 2);
                 this.stretchRatio = 1.0 + rocheForce * 3.5 + progress * 2.0;
                 this.heat = clamp(rocheForce * 1.5 + progress * 1.2, 0, 1);
 
                 const absorbDt = Math.max(0, this.age - this.absorbDelay) - Math.max(0, previousAge - this.absorbDelay);
-                const tr = Math.min(this.massPool, this.massRate * absorbDt);
+                const maxNpcMass = STAGES[10].min * 0.95;
+                const remainingCapacity = this.devourer.isPlayer ? Infinity : Math.max(0, maxNpcMass - this.devourer.mass);
+                const tr = Math.min(this.massPool, this.massRate * absorbDt, remainingCapacity);
                 if (tr > 0) {
                     this.devourer.mass += tr;
                     this.massPool -= tr;
@@ -1478,10 +1500,7 @@
                 if (this.disruptionProgress < 0.98) {
                     ctx.save();
                     ctx.translate(bodyX, bodyY);
-                    ctx.rotate(this.angle);
-                    const currentScaleX = this.stretchRatio * (1 - this.disruptionProgress * 0.7);
-                    const currentScaleY = Math.max(0.05, (1 / Math.sqrt(this.stretchRatio)) * (1 - this.disruptionProgress * 0.85));
-                    ctx.scale(currentScaleX, currentScaleY);
+                    const bodyFade = clamp(1 - this.disruptionProgress * 1.15, 0, 1);
 
                     if (this.heat > 0.05) {
                         ctx.save();
@@ -1495,33 +1514,52 @@
                         ctx.restore();
                     }
 
-                    ctx.globalAlpha = clamp(1.2 - this.disruptionProgress, 0, 1);
-                    drawBody(0, 0, this.baseR, this.stageIdx, this.variant, this.age * 3);
+                    ctx.globalAlpha = bodyFade;
+                    drawBody(0, 0, this.baseR, this.stageIdx, this.variant, 0);
                     ctx.restore();
                 }
 
-                if (this.disruptionProgress > 0.04 && this.disruptionProgress < 0.96) {
-                    const axisX = Math.cos(this.angle), axisY = Math.sin(this.angle);
-                    const sideX = -axisY, sideY = axisX;
-                    const startX = dev.x + axisX * dev.r * 1.02;
-                    const startY = dev.y + axisY * dev.r * 1.02;
-                    const tearLength = this.baseR * (0.55 + this.disruptionProgress * 0.35);
+                if (this.disruptionProgress > 0.02 && this.disruptionProgress < 0.99) {
+                    const innerR = dev.r * 0.82;
+                    const outerR = lerp(Math.max(dev.r * 1.25, this.orbitRadius), innerR * 1.15, this.disruptionProgress * 0.72);
+                    const fade = Math.sin(Math.PI * clamp(this.disruptionProgress, 0, 1));
 
                     ctx.save();
                     ctx.globalCompositeOperation = 'lighter';
                     ctx.lineCap = 'round';
-                    ctx.lineWidth = Math.max(1.2, this.baseR * (0.04 + this.heat * 0.05));
-                    ctx.strokeStyle = `rgba(255,190,115,${0.25 + this.heat * 0.55})`;
-                    for (const side of [-1, 1]) {
-                        const endX = bodyX - axisX * tearLength + sideX * this.baseR * 0.16 * side;
-                        const endY = bodyY - axisY * tearLength + sideY * this.baseR * 0.16 * side;
-                        const midX = (startX + endX) * 0.5 + sideX * this.baseR * 0.3 * side;
-                        const midY = (startY + endY) * 0.5 + sideY * this.baseR * 0.3 * side;
+
+                    for (let arm = 0; arm < 2; arm++) {
                         ctx.beginPath();
-                        ctx.moveTo(startX + sideX * this.baseR * 0.12 * side, startY + sideY * this.baseR * 0.12 * side);
-                        ctx.quadraticCurveTo(midX, midY, endX, endY);
+                        const turns = Math.PI * 4.2;
+                        const startAngle = this.angle + arm * Math.PI + this.age * 0.7;
+                        for (let i = 0; i <= 80; i++) {
+                            const t = i / 80;
+                            const radius = outerR * Math.pow(innerR / outerR, t);
+                            const a = startAngle + turns * t;
+                            const x = dev.x + Math.cos(a) * radius;
+                            const y = dev.y + Math.sin(a) * radius;
+                            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                        }
+                        ctx.strokeStyle = arm === 0
+                            ? `rgba(255,205,145,${0.16 + 0.34 * fade})`
+                            : `rgba(125,185,235,${0.08 + 0.2 * fade})`;
+                        ctx.lineWidth = Math.max(1, this.baseR * (arm === 0 ? 0.055 : 0.025));
                         ctx.stroke();
                     }
+
+                    const streamX = dev.x + Math.cos(this.angle) * this.dist;
+                    const streamY = dev.y + Math.sin(this.angle) * this.dist;
+                    ctx.beginPath();
+                    ctx.moveTo(streamX, streamY);
+                    ctx.quadraticCurveTo(
+                        dev.x + Math.cos(this.angle + 1.1) * outerR * 0.62,
+                        dev.y + Math.sin(this.angle + 1.1) * outerR * 0.62,
+                        dev.x + Math.cos(this.angle + 2.2) * innerR,
+                        dev.y + Math.sin(this.angle + 2.2) * innerR
+                    );
+                    ctx.strokeStyle = `rgba(255,220,175,${0.3 * fade})`;
+                    ctx.lineWidth = Math.max(1, this.baseR * 0.035);
+                    ctx.stroke();
                     ctx.restore();
                 }
             }
@@ -1623,6 +1661,61 @@
             }
         }
 
+        function fragmentPlanet(target, impactX, impactY, impactVx, impactVy, impactMass, violent) {
+            if (!target || target.dead) return;
+            const originalMass = target.mass;
+            const lethal = violent && impactMass >= originalMass * 2.2;
+            const lostMass = originalMass * (lethal ? rand(0.78, 0.88) : violent ? rand(0.24, 0.38) : rand(0.08, 0.16));
+            const remainingMass = originalMass - lostMass;
+            const maxFragments = Math.max(1, 90 - game.enemies.length);
+            const fragmentCount = Math.min(maxFragments, violent ? Math.floor(rand(4, 7)) : Math.floor(rand(2, 5)));
+            const fragmentMass = fragmentCount ? lostMass / fragmentCount : 0;
+            const impactAngle = Math.atan2(impactVy, impactVx);
+
+            if (lethal || (violent && remainingMass < STAGES[0].min + 1)) {
+                if (target.isPlayer) {
+                    target.mass = Math.max(15, remainingMass);
+                    target.r = radiusOf(target.mass);
+                    target.stage = stageOf(target.mass);
+                } else {
+                    target.dead = true;
+                }
+            } else {
+                target.mass = Math.max(STAGES[0].min + 1, remainingMass);
+                target.r = radiusOf(target.mass);
+                target.stage = stageOf(target.mass);
+                target.variant = target.stage === 0 ? 0 : target.variant;
+                if (target.isPlayer) target.pulse = 1;
+            }
+
+            for (let i = 0; i < fragmentCount; i++) {
+                const spread = rand(-1.25, 1.25);
+                const angle = impactAngle + Math.PI + spread;
+                const speed = rand(90, 230) * (violent ? 1.25 : 1);
+                const mass = fragmentMass;
+                const stage = stageOf(mass);
+                const variantIdx = stage === 0 ? 0 : Math.floor(Math.random() * CATALOG[stage].length);
+                const variant = CATALOG[stage][variantIdx];
+                game.enemies.push({
+                    x: impactX + Math.cos(angle) * (target.r + 4),
+                    y: impactY + Math.sin(angle) * (target.r + 4),
+                    vx: impactVx * 0.16 + Math.cos(angle) * speed,
+                    vy: impactVy * 0.16 + Math.sin(angle) * speed,
+                    mass, r: radiusOf(mass), stage, variant: variantIdx,
+                    label: variant.label, color: variant.color, glow: variant.glow,
+                    angle: Math.random() * TAU, spin: rand(-1.2, 1.2),
+                    aiTimer: 0, aiMode: 'normal', meteorSense: 'careless',
+                    meteorCheckTimer: rand(0.2, 0.5), dead: false, debris: true
+                });
+            }
+
+            const x = target.dead ? impactX : target.x;
+            const y = target.dead ? impactY : target.y;
+            game.events.push(new MutualCrashEvent(x, y, Math.max(target.r, 12), '#ff9a4c', target.color || '#9ae6ff'));
+            addCollisionRipple(x, y, Math.max(target.r, 12), target.color || '#9ae6ff');
+            addSparks(impactX, impactY, '#ffb36b', violent ? 30 : 16);
+        }
+
         class DangerMeteor {
             constructor(startX, startY, targetX, targetY) {
                 this.startX = startX; this.startY = startY;
@@ -1651,10 +1744,14 @@
                 this.speed = rand(800, 1200);
                 this.vx = (dx / dist) * this.speed;
                 this.vy = (dy / dist) * this.speed;
+                const pathRoll = Math.random();
+                this.pathType = pathRoll < 0.4 ? '直线' : pathRoll < 0.75 ? '弧线' : '偏转';
+                this.curve = this.pathType === '直线' ? 0 : rand(220, 520) * (Math.random() < 0.5 ? -1 : 1);
 
                 this.trail = [];
-                this.maxTrail = Math.floor(rand(28, 45));
+                this.maxTrail = Math.floor(rand(16, 26));
                 this.penetrationCount = 0;
+                this.mass = this.r * this.r * rand(10, 20);
             }
 
             update(dt) {
@@ -1666,44 +1763,65 @@
                     return;
                 }
 
+                if (this.curve) {
+                    const speed = Math.hypot(this.vx, this.vy) || 1;
+                    const turn = this.curve / speed * dt;
+                    const cosTurn = Math.cos(turn), sinTurn = Math.sin(turn);
+                    const vx = this.vx, vy = this.vy;
+                    this.vx = vx * cosTurn - vy * sinTurn;
+                    this.vy = vx * sinTurn + vy * cosTurn;
+                    this.angle = Math.atan2(this.vy, this.vx);
+                }
                 this.x += this.vx * dt;
                 this.y += this.vy * dt;
 
                 const p = game.player;
-                const dx = p.x - this.x, dy = p.y - this.y;
-                const dist = Math.hypot(dx, dy);
-
-                if (dist < p.r + this.r) {
-                    const radiusRatio = p.r / this.r;
-                    if (radiusRatio < 0.82) {
-                        this.dead = true;
-                        game.events.push(new MutualCrashEvent(p.x, p.y, Math.max(p.r, this.r) * 1.8, '#ff1111', '#4a80c0'));
-                        game.shake = 16;
-                        gameOver();
-                        return;
-                    } else {
-                        triggerPlayerShatter(p, { x: this.x, y: this.y, r: this.r, color: '#ff3333' });
+                const playerDx = p.x - this.x, playerDy = p.y - this.y;
+                if (playerDx * playerDx + playerDy * playerDy < (p.r + this.r) * (p.r + this.r)) {
+                    if ((p.invulnerableTimer || 0) > 0) {
+                        if (this.r >= p.r * 0.72) {
+                            fragmentPlanet(p, this.x, this.y, this.vx, this.vy, this.mass, false);
+                        } else {
+                            p.mass += this.mass * 0.9;
+                            p.r = radiusOf(p.mass);
+                            evolveEntity(p, stageOf(p.mass));
+                            p.pulse = 1;
+                            addSparks(this.x, this.y, '#ffb36b', 14);
+                            addCollisionRipple(this.x, this.y, this.r, '#ffb36b');
+                        }
                         this.dead = true;
                         return;
                     }
+                    const impactMass = this.mass + p.mass * Math.min(0.24, this.speed / 6500);
+                    const violent = this.r >= p.r * 0.72;
+                    if (violent && impactMass >= p.mass * 2.2) {
+                        this.dead = true;
+                        fragmentPlanet(p, this.x, this.y, this.vx, this.vy, impactMass, true);
+                        game.shake = 16;
+                        gameOver();
+                        return;
+                    }
+                    if (violent) {
+                        triggerPlayerShatter(p, { x: this.x, y: this.y, r: this.r, color: '#ff9a4c', vx: this.vx, vy: this.vy, mass: impactMass });
+                    } else {
+                        fragmentPlanet(p, this.x, this.y, this.vx, this.vy, impactMass, false);
+                    }
+                    this.dead = true;
+                    return;
                 }
 
-                for (const e of game.enemies) {
-                    if (e.dead) continue;
-                    const edx = e.x - this.x, edy = e.y - this.y;
-                    if (Math.hypot(edx, edy) < e.r + this.r) {
-                        if (this.r >= e.r * 0.8) {
-                            shatterEnemyIntoFrags(e);
-                            this.penetrationCount++;
-                            if (this.penetrationCount >= 3) {
-                                this.dead = true;
-                                break;
-                            }
-                        } else {
-                            shatterEnemyIntoFrags(e);
-                            this.dead = true;
-                            break;
-                        }
+                for (const target of game.enemies) {
+                    if (!target || target.dead) continue;
+                    const dx = target.x - this.x, dy = target.y - this.y;
+                    if (dx * dx + dy * dy >= (target.r + this.r) * (target.r + this.r)) continue;
+
+                    const impactMass = this.mass + target.mass * Math.min(0.24, this.speed / 6500);
+                    const violent = this.r >= target.r * 0.72;
+                    fragmentPlanet(target, this.x, this.y, this.vx, this.vy, impactMass, violent);
+                    this.penetrationCount++;
+                    if (this.r < target.r * 0.8 || this.penetrationCount >= 3) {
+                        this.dead = true;
+                        break;
                     }
                 }
 
@@ -1724,7 +1842,12 @@
                     ctx.setLineDash([10, 8]);
                     ctx.beginPath();
                     ctx.moveTo(this.startX, this.startY);
-                    ctx.lineTo(this.targetX + Math.cos(this.angle) * 1400, this.targetY + Math.sin(this.angle) * 1400);
+                    const endX = this.targetX + Math.cos(this.angle) * 1400;
+                    const endY = this.targetY + Math.sin(this.angle) * 1400;
+                    const midX = (this.startX + endX) * 0.5;
+                    const midY = (this.startY + endY) * 0.5;
+                    const normalX = -Math.sin(this.angle), normalY = Math.cos(this.angle);
+                    ctx.quadraticCurveTo(midX + normalX * this.curve * 1.8, midY + normalY * this.curve * 1.8, endX, endY);
                     ctx.stroke();
 
                     ctx.strokeStyle = `rgba(255, 20, 20, ${alpha})`;
@@ -1741,7 +1864,7 @@
                 if (this.trail.length > 1) {
                     ctx.save();
                     ctx.globalCompositeOperation = 'lighter';
-                    for (let i = 0; i < this.trail.length - 1; i++) {
+                    for (let i = 0; i < this.trail.length - 1; i += 2) {
                         const k = 1 - i / this.trail.length;
                         ctx.strokeStyle = `rgba(255, 50, 10, ${k * 0.9})`;
                         ctx.lineWidth = this.r * k * 2.2;
@@ -1765,7 +1888,7 @@
             }
         }
 
-        function spawnDangerMeteor(scatter) {
+        function spawnDangerMeteor(scatter, showerPattern = null) {
             const p = game.player;
             const viewR = Math.max(W, H) / (2 * game.cam.zoom);
 
@@ -1774,9 +1897,24 @@
             const startX = p.x + Math.cos(ang) * spawnDist;
             const startY = p.y + Math.sin(ang) * spawnDist;
 
-            const scatterR = scatter ? 450 : 50;
-            const targetX = p.x + rand(-scatterR, scatterR);
-            const targetY = p.y + rand(-scatterR, scatterR);
+            let targetX, targetY;
+            if (!scatter) {
+                targetX = p.x + rand(-50, 50);
+                targetY = p.y + rand(-50, 50);
+            } else if (showerPattern === 'fan') {
+                const towardPlayer = Math.atan2(p.y - startY, p.x - startX);
+                const targetAngle = towardPlayer + rand(-0.75, 0.75);
+                const targetDist = rand(viewR * 0.08, viewR * 0.42);
+                targetX = p.x + Math.cos(targetAngle) * targetDist;
+                targetY = p.y + Math.sin(targetAngle) * targetDist;
+            } else if (showerPattern === 'crossfire') {
+                targetX = p.x + rand(-viewR * 0.55, viewR * 0.55);
+                targetY = p.y + rand(-viewR * 0.38, viewR * 0.38);
+            } else {
+                const scatterR = rand(viewR * 0.12, viewR * 0.5);
+                targetX = p.x + rand(-scatterR, scatterR);
+                targetY = p.y + rand(-scatterR, scatterR);
+            }
 
             game.meteors.push(new DangerMeteor(startX, startY, targetX, targetY));
         }
@@ -1791,8 +1929,9 @@
                 this.orbitRadius = 0;
                 this.orbitAngle = 0;
                 this.orbitSpeed = 0;
+                this.mass = Math.max(12, this.r * this.r * rand(10, 18));
                 this.trail = [];
-                this.maxTrail = 24;
+                this.maxTrail = 14;
             }
 
             update(dt) {
@@ -1806,6 +1945,17 @@
                     const dist = Math.hypot(dx, dy);
 
                     if (dist < p.r + this.r * 0.5) {
+                    if ((p.invulnerableTimer || 0) > 0) {
+                        this.dead = true;
+                        p.mass += this.mass * 0.9;
+                        p.r = radiusOf(p.mass);
+                        syncPlayerStage(p);
+                        p.pulse = 1;
+                        addSparks(this.x, this.y, '#90e0ff', 12);
+                        addCollisionRipple(this.x, this.y, this.r, '#90e0ff');
+                        return;
+                    }
+
                         this.dead = true;
                         p.mass = Math.max(10, p.mass - 150);
                         p.r = radiusOf(p.mass);
@@ -1837,24 +1987,29 @@
                         const edist = Math.hypot(edx, edy);
 
                         if (edist < e.r + this.r) {
-                            const ratio = e.mass / p.mass;
-
-                            if (ratio > 2.8) {
-                                this.state = 'free';
-                                const toPlayerAngle = Math.atan2(p.y - e.y, p.x - e.x) + rand(-0.25, 0.25);
-                                const throwSpeed = rand(600, 850);
-                                this.vx = Math.cos(toPlayerAngle) * throwSpeed;
-                                this.vy = Math.sin(toPlayerAngle) * throwSpeed;
-                                game.shake = 6;
-                                game.ripples.push({ x: e.x, y: e.y, r: e.r, max: e.r * 2.8, life: 1.0, color: '#ff4444' });
-                                break;
-                            } else {
-                                this.dead = true;
-                                shatterEnemyIntoFrags(e);
-                                break;
-                            }
+                            const impactMass = this.mass + e.mass * 0.12;
+                            const violent = this.r >= e.r * 0.72;
+                            fragmentPlanet(e, this.x, this.y, this.vx, this.vy, impactMass, violent);
+                            this.dead = true;
+                            break;
                         }
                     }
+                }
+
+                if (this.state === 'free' && !this.dead) {
+                    let hitEnemy = false;
+                    for (const e of game.enemies) {
+                        if (e.dead) continue;
+                        const edx = e.x - this.x, edy = e.y - this.y;
+                        if (edx * edx + edy * edy >= (e.r + this.r) * (e.r + this.r)) continue;
+                        const impactMass = this.mass + e.mass * 0.12;
+                        const violent = this.r >= e.r * 0.72;
+                        fragmentPlanet(e, this.x, this.y, this.vx, this.vy, impactMass, violent);
+                        this.dead = true;
+                        hitEnemy = true;
+                        break;
+                    }
+                    if (hitEnemy) return;
                 }
 
                 this.trail.unshift({ x: this.x, y: this.y });
@@ -1865,7 +2020,7 @@
                 if (this.trail.length > 1) {
                     ctx.save();
                     ctx.globalCompositeOperation = 'lighter';
-                    for (let i = 0; i < this.trail.length - 1; i++) {
+                    for (let i = 0; i < this.trail.length - 1; i += 2) {
                         const k = 1 - i / this.trail.length;
                         ctx.strokeStyle = `rgba(140, 225, 255, ${k * 0.75})`;
                         ctx.lineWidth = this.r * k * 1.6;
@@ -1907,6 +2062,7 @@
                 x: 0, y: 0, vx: 0, vy: 0,
                 mass: INITIAL_MASS,
                 r: radiusOf(INITIAL_MASS),
+                invulnerableTimer: 3,
                 angle: 0,
                 stage: 0,
                 variant: 0,
@@ -1921,7 +2077,7 @@
             game.events = [];
             game.sparks = [];
             game.ripples = [];
-            game.cam = { x: 0, y: 0, zoom: clamp((W < 700 ? 52 : 80) / p.r, 0.05, 1.15) };
+            game.cam = { x: 0, y: 0, zoom: clamp((W < 700 ? 52 * 0.75 : 80) / p.r, 0.05, 1.15) };
             game.playTime = 0;
             game.shake = 0;
             game.spawnTimer = 0;
@@ -1948,7 +2104,7 @@
 
             resetStick();
 
-            for (let i = 0; i < 70; i++) spawnEnemy(true);
+            for (let i = 0; i < 36; i++) spawnEnemy(true);
         }
 
         function pickVariant(stageIdx) {
@@ -1980,16 +2136,20 @@
             if (forceBlackHole) {
                 mass = Math.max(STAGES[10].min * 1.05, p.mass * rand(0.75, 1.25));
             } else if (calm) {
-                mass = p.mass * rand(0.02, 0.70);
-            } else if (roll < 0.40) {
-                mass = p.mass * rand(0.008, 0.20);
-            } else if (roll < 0.68) {
-                mass = p.mass * rand(0.20, 0.65);
-            } else if (roll < 0.85) {
-                mass = p.mass * rand(0.65, 0.98);
+                const balanceRoll = Math.random();
+                if (balanceRoll < 0.48) mass = p.mass * rand(0.25, 0.68);
+                else if (balanceRoll < 0.84) mass = p.mass * rand(0.68, 1.12);
+                else mass = p.mass * rand(1.12, 1.55);
+            } else if (roll < 0.38) {
+                mass = p.mass * rand(0.12, 0.58);
+            } else if (roll < 0.76) {
+                mass = p.mass * rand(0.58, 1.12);
+            } else if (roll < 0.94) {
+                mass = p.mass * rand(1.12, 1.8);
             } else {
-                mass = p.mass * rand(1.25, 3.80);
+                mass = p.mass * rand(1.8, 2.4);
             }
+            if (!forceBlackHole) mass = Math.min(mass, STAGES[10].min * 0.95);
             mass = Math.max(mass, 3);
 
             const stage = stageOf(mass);
@@ -2016,6 +2176,8 @@
                 spin: rand(-0.7, 0.7),
                 aiTimer: 0,
                 aiMode: Math.random() < 0.35 ? 'orbit' : 'normal',
+                meteorSense: Math.random() < 0.26 ? 'smart' : Math.random() < 0.72 ? 'normal' : 'careless',
+                meteorCheckTimer: rand(0.05, 0.35),
                 dead: false,
             });
         }
@@ -2040,7 +2202,8 @@
 
         function devourDirect(victim, devourer, isPlayerDevourer) {
             victim.dead = true;
-            devourer.mass += victim.mass * 0.95;
+            const gainedMass = victim.mass * 0.95;
+            devourer.mass += devourer.isPlayer ? gainedMass : Math.min(gainedMass, Math.max(0, STAGES[10].min * 0.95 - devourer.mass));
             devourer.r = radiusOf(devourer.mass);
             evolveEntity(devourer, stageOf(devourer.mass));
             if (isPlayerDevourer) devourer.pulse = 1;
@@ -2071,14 +2234,27 @@
             addSparks(x, y, '#ffaa44', 40);
         }
 
+        const collisionCandidates = [];
+
         function checkEnemyCollisions() {
             const list = game.enemies;
+            const p = game.player;
+            const activeRadius = Math.max(W, H) / (2 * game.cam.zoom) * 1.5;
+            const activeRadius2 = activeRadius * activeRadius;
+            collisionCandidates.length = 0;
             for (let i = 0; i < list.length; i++) {
                 const a = list[i];
                 if (a.dead) continue;
+                const adx = a.x - p.x, ady = a.y - p.y;
+                if (adx * adx + ady * ady <= activeRadius2) collisionCandidates.push(a);
+            }
 
-                for (let j = i + 1; j < list.length; j++) {
-                    const b = list[j];
+            for (let i = 0; i < collisionCandidates.length; i++) {
+                const a = collisionCandidates[i];
+                if (a.dead) continue;
+
+                for (let j = i + 1; j < collisionCandidates.length; j++) {
+                    const b = collisionCandidates[j];
                     if (b.dead) continue;
 
                     const dx = b.x - a.x, dy = b.y - a.y;
@@ -2110,6 +2286,8 @@
         function triggerPlayerShatter(p, e) {
             e.dead = true;
             const lostMass = p.mass * 0.42;
+            const impactX = (p.x + e.x) * 0.5;
+            const impactY = (p.y + e.y) * 0.5;
             p.mass = Math.max(15, p.mass - lostMass);
             p.r = radiusOf(p.mass);
             p.stage = stageOf(p.mass);
@@ -2125,16 +2303,20 @@
             p.vx = Math.cos(angle) * knockback;
             p.vy = Math.sin(angle) * knockback;
 
-            const count = 5;
-            const fragMass = lostMass / count;
+            const count = Math.min(Math.max(1, 90 - game.enemies.length), 5);
+            const fragMass = count ? lostMass / count : 0;
             for (let i = 0; i < count; i++) {
-                const fa = Math.random() * TAU, fs = rand(70, 180);
+                const fa = (e.vx || 0) || (e.vy || 0) ? Math.atan2(e.vy || 0, e.vx || 0) + Math.PI + rand(-1.1, 1.1) : Math.random() * TAU;
+                const fs = rand(70, 180);
+                const fragmentStage = stageOf(fragMass);
+                const fragmentVariant = fragmentStage === 0 ? 0 : Math.floor(Math.random() * CATALOG[fragmentStage].length);
+                const variant = CATALOG[fragmentStage][fragmentVariant];
                 game.enemies.push({
-                    x: p.x + Math.cos(fa) * (p.r + 10), y: p.y + Math.sin(fa) * (p.r + 10),
-                    vx: Math.cos(fa) * fs, vy: Math.sin(fa) * fs,
-                    mass: fragMass, r: radiusOf(fragMass), stage: stageOf(fragMass),
-                    variant: 0, label: '', color: '#9ae6ff', glow: '#3fb8ff', angle: Math.random() * TAU, spin: rand(-1, 1),
-                    aiTimer: 0, aiMode: 'normal', dead: false, debris: true
+                    x: impactX + Math.cos(fa) * (p.r + 10), y: impactY + Math.sin(fa) * (p.r + 10),
+                    vx: (e.vx || 0) * 0.16 + Math.cos(fa) * fs, vy: (e.vy || 0) * 0.16 + Math.sin(fa) * fs,
+                    mass: fragMass, r: radiusOf(fragMass), stage: fragmentStage,
+                    variant: fragmentVariant, label: variant.label, color: variant.color, glow: variant.glow, angle: Math.random() * TAU, spin: rand(-1, 1),
+                    aiTimer: 0, aiMode: 'normal', meteorSense: 'careless', meteorCheckTimer: rand(0.2, 0.5), dead: false, debris: true
                 });
             }
         }
@@ -2152,7 +2334,7 @@
         function updateCamera(dt) {
             const p = game.player;
             const targetRadius = W < 700 ? 52 : 80;
-            const mobileZoom = W < 700 ? 0.88 : 1;
+            const mobileZoom = W < 700 ? 0.75 : 1;
             const targetZoom = clamp(mobileZoom * targetRadius / p.r, 0.05, 1.15);
 
             const lookX = p.x + p.vx * 0.12;
@@ -2173,7 +2355,7 @@
             const zoom = game.cam.zoom;
 
             // 屏幕速度恒定：zoom 越小（体型越大），世界速度越大
-            const maxSpeed = 171 / zoom;
+            const maxSpeed = 145 / zoom;
             const acc = Math.min(1, dt * 6.0);
 
             let tvx = 0, tvy = 0, hasInput = false;
@@ -2208,6 +2390,7 @@
             }
 
             p.x += p.vx * dt; p.y += p.vy * dt;
+            p.invulnerableTimer = Math.max(0, (p.invulnerableTimer || 0) - dt);
             p.angle += dt * 0.55;
             p.r = radiusOf(p.mass);
             p.pulse *= Math.pow(0.02, dt);
@@ -2240,7 +2423,23 @@
                 const dx = p.x - e.x, dy = p.y - e.y;
                 const d = Math.hypot(dx, dy) || 1;
 
+                if (d > viewR * 3) { game.enemies.splice(i, 1); continue; }
+                if (d > viewR * 1.5) continue;
+
                 if (d < p.r + e.r) {
+                    if ((p.invulnerableTimer || 0) > 0) {
+                        if (p.mass > e.mass * CAN_TEAR_RATIO) {
+                            devourDirect(e, p, true);
+                        } else {
+                            const nx = -dx / d, ny = -dy / d;
+                            const separation = p.r + e.r - d + 2;
+                            e.x += nx * separation;
+                            e.y += ny * separation;
+                            e.vx += nx * 90;
+                            e.vy += ny * 90;
+                        }
+                        continue;
+                    }
                     if (stageOf(p.mass) >= 10 && stageOf(e.mass) >= 10) {
                         startFinale(e);
                         return;
@@ -2248,11 +2447,7 @@
 
                     const ratio = p.mass / e.mass;
                     if (ratio > CAN_TEAR_RATIO) {
-                        if (e.r < 4 || game.events.length >= 12) {
-                            devourDirect(e, p, true);
-                        } else {
-                            startTidalDisruption(e, p, true);
-                        }
+                        devourDirect(e, p, true);
                     } else if (ratio < 1 / 2.8 && e.mass > p.mass * 2.5) {
                         game.events.push(new MutualCrashEvent(
                             p.x, p.y,
@@ -2277,7 +2472,7 @@
                     e.angle += e.spin * dt;
                     const dampD = Math.pow(0.55, dt);
                     e.vx *= dampD; e.vy *= dampD;
-                    e.x += e.vx * dt * 0.9; e.y += e.vy * dt * 0.9;
+                    e.x += e.vx * dt * 0.75; e.y += e.vy * dt * 0.75;
                     if (d > viewR * 4.5) game.enemies.splice(i, 1);
                     continue;
                 }
@@ -2290,48 +2485,69 @@
 
                 e.aiTimer = (e.aiTimer || 0) - dt;
 
-                if (d < viewR * 1.2) {
-                    if (e.mass > p.mass * 1.15) {
-                        const chase = 22 + 14 * clamp(1 - d / (viewR * 1.2), 0, 1);
-                        e.vx += (dx / d) * chase * dt;
-                        e.vy += (dy / d) * chase * dt;
-                    } else if (p.mass > e.mass * 1.25) {
-                        if (e.aiMode === 'orbit') {
-                            const tangentX = -dy / d, tangentY = dx / d;
-                            e.vx += (tangentX * 40 - (dx / d) * 12) * dt;
-                            e.vy += (tangentY * 40 - (dy / d) * 12) * dt;
-                        } else {
-                            e.vx -= (dx / d) * 28 * dt;
-                            e.vy -= (dy / d) * 28 * dt;
-                        }
-                    }
-                }
-
                 if (e.aiTimer <= 0) {
-                    let nearestSmallerDist = Infinity, targetPrey = null;
-                    for (let j = 0; j < game.enemies.length; j++) {
-                        if (i === j) continue;
-                        const other = game.enemies[j];
-                        if (other.dead || other.debris) continue;
-                        const odist = Math.hypot(other.x - e.x, other.y - e.y);
+                    let targetX = 0, targetY = 0, urgency = 0;
+                    const playerThreat = e.mass > p.mass * 1.08;
+                    const playerCanEat = p.mass > e.mass * 1.18;
 
-                        if (odist < viewR * 0.8 && e.mass > other.mass * CAN_TEAR_RATIO && odist < nearestSmallerDist) {
-                            nearestSmallerDist = odist; targetPrey = other;
+                    if (d < viewR * 1.25 && playerThreat) {
+                        targetX = dx / d;
+                        targetY = dy / d;
+                        urgency = 1.0;
+                    } else if (d < viewR * 1.25 && playerCanEat) {
+                        targetX = -dx / d;
+                        targetY = -dy / d;
+                        urgency = 0.95;
+                    } else {
+                        let bestPreyDist2 = viewR * viewR * 0.72;
+                        let prey = null;
+                        let nearestLargerDist2 = Infinity;
+                        let largerThreat = null;
+
+                        for (let j = 0; j < game.enemies.length; j++) {
+                            if (j === i) continue;
+                            const other = game.enemies[j];
+                            if (other.dead || other.debris) continue;
+                            const ox = other.x - e.x, oy = other.y - e.y;
+                            const dist2 = ox * ox + oy * oy;
+                            if (other.mass < e.mass / CAN_TEAR_RATIO && dist2 < bestPreyDist2) {
+                                bestPreyDist2 = dist2;
+                                prey = other;
+                            } else if (other.mass > e.mass * CAN_TEAR_RATIO && dist2 < nearestLargerDist2) {
+                                nearestLargerDist2 = dist2;
+                                largerThreat = other;
+                            }
+                        }
+
+                        if (prey) {
+                            const pd = Math.sqrt(bestPreyDist2) || 1;
+                            targetX = (prey.x - e.x) / pd;
+                            targetY = (prey.y - e.y) / pd;
+                            urgency = 0.72;
+                        } else if (largerThreat && nearestLargerDist2 < viewR * viewR * 0.2) {
+                            const td = Math.sqrt(nearestLargerDist2) || 1;
+                            targetX = (e.x - largerThreat.x) / td;
+                            targetY = (e.y - largerThreat.y) / td;
+                            urgency = 0.62;
+                        } else if (e.aiMode === 'orbit') {
+                            const tangent = Math.atan2(dy, dx) + (e.orbitDir || (e.orbitDir = Math.random() < 0.5 ? -1 : 1)) * Math.PI * 0.5;
+                            targetX = Math.cos(tangent);
+                            targetY = Math.sin(tangent);
+                            urgency = 0.24;
                         }
                     }
 
-                    if (targetPrey) {
-                        const tdx = targetPrey.x - e.x, tdy = targetPrey.y - e.y;
-                        const tdist = Math.hypot(tdx, tdy) || 1;
-                        e.vx += (tdx / tdist) * 40 * dt; e.vy += (tdy / tdist) * 40 * dt;
+                    if (urgency > 0) {
+                        const steering = 34 + urgency * 48;
+                        e.vx += targetX * steering;
+                        e.vy += targetY * steering;
                     }
-
-                    e.aiTimer = rand(1.8, 3.5);
+                    e.aiTimer = rand(0.8, 1.8);
                 }
 
                 const damp = Math.pow(0.78, dt);
                 e.vx *= damp; e.vy *= damp;
-                e.x += e.vx * dt * 0.9; e.y += e.vy * dt * 0.9;
+                e.x += e.vx * dt * 0.75; e.y += e.vy * dt * 0.75;
                 e.angle += e.spin * dt;
 
                 if (d > viewR * 2.8) game.enemies.splice(i, 1);
@@ -2392,11 +2608,11 @@
                 else alive++;
             }
 
-            if (alive < 110) {
+            if (alive < 52) {
                 game.spawnTimer -= dt;
                 if (game.spawnTimer <= 0) {
                     spawnEnemy(false);
-                    game.spawnTimer = 0.03;
+                    game.spawnTimer = 0.08;
                 }
             } else {
                 game.spawnTimer = 0;
@@ -2416,11 +2632,20 @@
 
             game.showerTimer -= dt;
             if (game.showerTimer <= 0) {
-                const showerCount = Math.floor(rand(6, 11));
+                const patterns = ['focused', 'fan', 'crossfire'];
+                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+                const showerCount = pattern === 'focused'
+                    ? Math.floor(rand(8, 13))
+                    : pattern === 'fan'
+                        ? Math.floor(rand(4, 9))
+                        : Math.floor(rand(6, 12));
                 for (let i = 0; i < showerCount; i++) {
-                    setTimeout(() => { if (game.state === 'play' && !game.finale) spawnDangerMeteor(true); }, i * 180);
+                    const delay = i * rand(110, 260);
+                    setTimeout(() => {
+                        if (game.state === 'play' && !game.finale) spawnDangerMeteor(true, pattern);
+                    }, delay);
                 }
-                game.showerTimer = rand(20, 32);
+                game.showerTimer = rand(17, 34);
             }
         }
 
@@ -2900,9 +3125,17 @@
                 drawBody(e.x, e.y, e.r, e.stage, e.variant, e.angle);
             }
 
-            for (const c of game.comets) c.draw();
-            for (const m of game.meteors) m.draw();
-            for (const ev of game.events) ev.draw();
+            for (const c of game.comets) {
+                if (c.x + c.r < L || c.x - c.r > R || c.y + c.r < T || c.y - c.r > B) continue;
+                c.draw();
+            }
+            for (const m of game.meteors) {
+                if (m.warningTimer <= 0 && (m.x + m.r < L || m.x - m.r > R || m.y + m.r < T || m.y - m.r > B)) continue;
+                m.draw();
+            }
+            for (const ev of game.events) {
+                if (!(ev instanceof TidalEvent)) ev.draw();
+            }
 
             if (game.finale && game.finale.partner && game.finale.partner.r > 0.5) {
                 const q = game.finale.partner;
@@ -2931,6 +3164,10 @@
             if (game.player && (game.state === 'play' || game.state === 'outro')) {
                 const pr = p.r * (1 + (p.pulse || 0) * 0.035);
                 drawBody(p.x, p.y, pr, p.stage, 0, p.angle);
+            }
+
+            for (const ev of game.events) {
+                if (ev instanceof TidalEvent) ev.draw();
             }
 
             drawLabels();
@@ -3012,6 +3249,13 @@
 
                 ctx.scale(cam.zoom, cam.zoom);
                 ctx.translate(-cam.x, -cam.y);
+
+                const halfW = W / (2 * cam.zoom), halfH = H / (2 * cam.zoom);
+                const viewL = cam.x - halfW - 200, viewR = cam.x + halfW + 200;
+                const viewT = cam.y - halfH - 200, viewB = cam.y + halfH + 200;
+                ctx.beginPath();
+                ctx.rect(viewL, viewT, viewR - viewL, viewB - viewT);
+                ctx.clip();
 
                 drawWorld();
                 ctx.restore();
@@ -3211,6 +3455,18 @@
             '从一粒尘埃开始，也能拥抱星辰。',
             '不必一开始就耀眼，持续前进就是光。'
         ];
+        const defeatQuotes = [
+            '跌落不是终点，重新出发就是新的轨道。',
+            '每一次失败，都在为下一次突破积蓄引力。',
+            '星辰也曾暗淡，别停下，下一局继续发光。',
+            '这一程暂时结束了，但你的宇宙还可以更大。',
+            '强者不是从未坠落，而是一次次重新启航。',
+            '把这次失误留在身后，下一次由你改写轨迹。',
+            '宇宙没有白走的路，带着经验再闯一次。',
+            '别气馁，成长正在悄悄积累，重新开始吧！',
+            '黑暗只是旅途的一段，继续前进就会遇见星光。',
+            '新的开始就在眼前，再试一次，吞下整片星海！'
+        ];
 
         function showMenu() {
             menuView.style.display = '';
@@ -3228,7 +3484,7 @@
             overlayEl.classList.remove('poem-mode');
             overlayEl.classList.add('dim');
             overlayEl.classList.remove('hide');
-            overTitleEl.textContent = '天下英雄如过江之鲫';
+            overTitleEl.textContent = defeatQuotes[Math.floor(Math.random() * defeatQuotes.length)];
 
             resultEl.innerHTML = `
         <span class="big">${STAGES[p.stage].name}</span>

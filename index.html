@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#020308">
-<title>Stellar Devour · 星吞</title>
+<title>GALAXY</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{
@@ -90,6 +90,28 @@
     -webkit-overflow-scrolling:touch;
   }
   #overlay.hide{opacity:0;pointer-events:none}
+
+  /* 结算界面半透明：让背后的撞击爆炸 / 星空可见 */
+  #overlay.dim{
+    background:radial-gradient(circle at 50% 45%,
+      rgba(18,28,68,.55),
+      rgba(2,3,9,.85) 75%);
+  }
+
+  #overlay.poem-mode{
+    background: linear-gradient(180deg,
+      rgba(2,3,9,0) 0%,
+      rgba(2,3,9,0) 55%,
+      rgba(2,3,9,0.55) 75%,
+      rgba(2,3,9,0.9) 100%);
+    justify-content: flex-end;
+    padding-bottom: max(50px, env(safe-area-inset-bottom));
+    transition: opacity 1.6s;
+  }
+  #overlay.poem-mode .over-title{ display:none; }
+  #overlay.poem-mode #result{ margin-bottom: 14px; }
+  #overlay.poem-mode .poem-sub{ margin-bottom: 0; }
+
   #overlay h1{
     font-size:clamp(40px, 13vw, 58px);
     letter-spacing:clamp(8px, 3vw, 16px);
@@ -148,24 +170,12 @@
     display:block;margin-bottom:12px;
     text-shadow:0 0 30px rgba(120,190,255,.8);
   }
-  .poem{
-    font-size:clamp(13px, 3.4vw, 16px);
-    line-height:2.3;
-    letter-spacing:clamp(1.5px, 0.8vw, 4px);
-    color:#d8e8ff;
-    text-shadow:0 0 28px rgba(110,170,255,.65);
-    margin:6px 0 18px;
-    animation:poemIn 3s ease both;
-  }
-  @keyframes poemIn{
-    0%{opacity:0;filter:blur(8px);letter-spacing:14px;transform:translateY(6px)}
-    100%{opacity:1;filter:blur(0);letter-spacing:clamp(1.5px,0.8vw,4px);transform:none}
-  }
   .poem-sub{
     font-size:clamp(10px,2.6vw,12px);
     color:rgba(160,195,255,.55);
     letter-spacing:1.5px;
     margin-bottom:clamp(18px,3.5vh,26px);
+    text-align:center;
   }
   #overlay .over-title{
     font-size:clamp(24px, 8vw, 34px);
@@ -197,7 +207,6 @@
     #overlay .over-title{font-size:24px;letter-spacing:4px;margin-bottom:14px}
     #result{font-size:12px;line-height:1.8;margin-bottom:14px}
     #result .big{font-size:24px;margin-bottom:8px}
-    .poem{font-size:12px;line-height:2;margin:4px 0 12px}
   }
 </style>
 </head>
@@ -205,31 +214,29 @@
 <canvas id="cv"></canvas>
 
 <div id="hud">
-  <div><span id="stageName">Micrometeorite</span><span id="massVal">100</span></div>
-  <div id="cometCount">Orbiting Comets: 0</div>
+  <div><span id="stageName">微陨石</span><span id="massVal">100</span></div>
+  <div id="cometCount">环绕彗星: 0</div>
   <div id="bar"><i id="fill"></i></div>
 </div>
 <div id="hint">
-  <span class="hint-desktop">Procedural Textures · Real Celestial Labels · Calm Pace<br>Endless Spawn · Meteor Piercing · Tidal Disruption</span>
-  <span class="hint-mobile">Drag to steer · Devour smaller bodies<br>Evade larger ones &amp; meteors</span>
+  <span class="hint-desktop">移动鼠标控制方向 · 吞噬更小天体<br>躲避更大天体与流星</span>
+  <span class="hint-mobile">按住屏幕任意处滑动控制方向 · 吞噬更小天体<br>躲避更大天体与流星</span>
 </div>
 
 <div id="overlay">
   <div id="menuView">
-    <h1>星 吞</h1>
-    <div class="sub">STELLAR DEVOUR</div>
+    <h1>星 河</h1>
+    <div class="sub">Galaxy</div>
     <div class="desc">
-      Procedural texture edition · <b>Real celestial labels</b><br>
-      Vesta · Pluto · Kepler-22b · HD 189733b · Cygnus X-1...<br>
-      Every body has its own unique procedural surface<br>
-      <b>Planet → Star → Neutron Star → Black Hole</b>
+        在微小的沙粒中，也藏着鲜为人知的壮丽诗篇<b><br>
+        <b>行星 → 恒星 → 中子星 → 黑洞</b>
     </div>
-    <button class="btn" id="startBtn">BEGIN EVOLUTION</button>
+    <button class="btn" id="startBtn">开 始 演 化</button>
   </div>
   <div id="overView" style="display:none">
-    <div class="over-title" id="overTitle">ANNIHILATION</div>
+    <div class="over-title" id="overTitle">天下英雄如过江之鲫</div>
     <div id="result" class="fadeIn"></div>
-    <button class="btn" id="againBtn">PLAY AGAIN</button>
+    <button class="btn" id="againBtn">再 来 一 次</button>
   </div>
 </div>
 
@@ -266,104 +273,104 @@ function mulberry32(a){
 }
 
 const STAGES = [
-  { name:'Micrometeorite', min:0,        type:'rock'      },
-  { name:'Asteroid',       min:400,      type:'rock'      },
-  { name:'Dwarf Planet',   min:1600,     type:'rock'      },
-  { name:'Rocky Planet',   min:6000,     type:'planet'    },
-  { name:'Super-Earth',    min:20000,    type:'planet'    },
-  { name:'Gas Giant',      min:70000,    type:'gas'       },
-  { name:'Brown Dwarf',    min:200000,   type:'brown'     },
-  { name:'Star',           min:600000,   type:'star'      },
-  { name:'Blue Giant',     min:1800000,  type:'star'      },
-  { name:'Neutron Star',   min:5000000,  type:'neutron'   },
-  { name:'Black Hole',     min:15000000, type:'blackhole' },
+  { name:'微陨石',     min:0,        type:'rock'      },
+  { name:'小行星',     min:400,      type:'rock'      },
+  { name:'矮行星',     min:1600,     type:'rock'      },
+  { name:'岩石行星',   min:6000,     type:'planet'    },
+  { name:'超级地球',   min:20000,    type:'planet'    },
+  { name:'气态巨行星', min:70000,    type:'gas'       },
+  { name:'褐矮星',     min:200000,   type:'brown'     },
+  { name:'恒星',       min:600000,   type:'star'      },
+  { name:'蓝巨星',     min:1800000,  type:'star'      },
+  { name:'中子星',     min:5000000,  type:'neutron'   },
+  { name:'黑洞',       min:15000000, type:'blackhole' },
 ];
 
 const CATALOG = [
   [
-    { label:'Carbonaceous Chondrite', color:'#3e3730', glow:'#241e18', tex:'carbon' },
-    { label:'Iron-Nickel Meteorite',  color:'#6a6258', glow:'#3a3530', tex:'metal'  },
-    { label:'Stony-Iron Meteorite',   color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
-    { label:'Pallasite',              color:'#8a7a62', glow:'#5a5040', tex:'metal'  },
+    { label:'碳质球粒陨石', color:'#3e3730', glow:'#241e18', tex:'carbon' },
+    { label:'铁镍陨石',     color:'#6a6258', glow:'#3a3530', tex:'metal'  },
+    { label:'石铁陨石',     color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
+    { label:'橄榄陨铁',     color:'#8a7a62', glow:'#5a5040', tex:'metal'  },
   ],
   [
-    { label:'Pallas',   color:'#5a544a', glow:'#2a2520', tex:'carbon' },
-    { label:'Vesta',    color:'#8a7a62', glow:'#5a5040', tex:'stony'  },
-    { label:'Juno',     color:'#9a8e78', glow:'#6a6050', tex:'metal'  },
-    { label:'Psyche',   color:'#a89c88', glow:'#706858', tex:'metal'  },
-    { label:'Eros',     color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
-    { label:'Hygiea',   color:'#8a98a8', glow:'#4a5868', tex:'icy'    },
-    { label:'Apophis',  color:'#6a5a4a', glow:'#3a2a1a', tex:'carbon' },
+    { label:'智神星',   color:'#5a544a', glow:'#2a2520', tex:'carbon' },
+    { label:'灶神星',   color:'#8a7a62', glow:'#5a5040', tex:'stony'  },
+    { label:'婚神星',   color:'#9a8e78', glow:'#6a6050', tex:'metal'  },
+    { label:'灵神星',   color:'#a89c88', glow:'#706858', tex:'metal'  },
+    { label:'爱神星',   color:'#7a6b58', glow:'#4a4034', tex:'stony'  },
+    { label:'许癸厄亚', color:'#8a98a8', glow:'#4a5868', tex:'icy'    },
+    { label:'阿波菲斯', color:'#6a5a4a', glow:'#3a2a1a', tex:'carbon' },
   ],
   [
-    { label:'Pluto',   color:'#b09070', glow:'#6a5040', tex:'cratered' },
-    { label:'Ceres',   color:'#888078', glow:'#4a4440', tex:'cratered' },
-    { label:'Eris',    color:'#c8c8c8', glow:'#808080', tex:'icy'      },
-    { label:'Haumea',  color:'#a8b0b8', glow:'#606870', tex:'icy'      },
-    { label:'Makemake',color:'#a09080', glow:'#605040', tex:'cratered' },
-    { label:'Quaoar',  color:'#9a9a9a', glow:'#505050', tex:'icy'      },
-    { label:'Sedna',   color:'#c05840', glow:'#702818', tex:'cratered' },
+    { label:'冥王星', color:'#b09070', glow:'#6a5040', tex:'cratered' },
+    { label:'谷神星', color:'#888078', glow:'#4a4440', tex:'cratered' },
+    { label:'阋神星', color:'#c8c8c8', glow:'#808080', tex:'icy'      },
+    { label:'妊神星', color:'#a8b0b8', glow:'#606870', tex:'icy'      },
+    { label:'鸟神星', color:'#a09080', glow:'#605040', tex:'cratered' },
+    { label:'创神星', color:'#9a9a9a', glow:'#505050', tex:'icy'      },
+    { label:'塞德娜', color:'#c05840', glow:'#702818', tex:'cratered' },
   ],
   [
-    { label:'Mercury',       color:'#8a8078', glow:'#4a4440', tex:'mercury' },
-    { label:'Venus',         color:'#d8b878', glow:'#8a7030', tex:'venus'   },
-    { label:'Earth',         color:'#4a80c0', glow:'#2a5080', tex:'earth'   },
-    { label:'Mars',          color:'#c06040', glow:'#702818', tex:'mars'    },
-    { label:'Kepler-186f',   color:'#a85840', glow:'#5a2818', tex:'venus'   },
-    { label:'Kepler-442b',   color:'#4a8868', glow:'#1a4838', tex:'earth'   },
-    { label:'TRAPPIST-1e',   color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
-    { label:'Proxima b',     color:'#c87858', glow:'#683020', tex:'mars'    },
+    { label:'水星',        color:'#8a8078', glow:'#4a4440', tex:'mercury' },
+    { label:'金星',        color:'#d8b878', glow:'#8a7030', tex:'venus'   },
+    { label:'地球',        color:'#4a80c0', glow:'#2a5080', tex:'earth'   },
+    { label:'火星',        color:'#c06040', glow:'#702818', tex:'mars'    },
+    { label:'开普勒-186f', color:'#a85840', glow:'#5a2818', tex:'venus'   },
+    { label:'开普勒-442b', color:'#4a8868', glow:'#1a4838', tex:'earth'   },
+    { label:'TRAPPIST-1e', color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
+    { label:'比邻星b',     color:'#c87858', glow:'#683020', tex:'mars'    },
   ],
   [
-    { label:'Kepler-22b',  color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
-    { label:'Gliese 581g', color:'#4a8868', glow:'#1a4838', tex:'earth'   },
-    { label:'Kepler-452b', color:'#5a8878', glow:'#284840', tex:'earth'   },
-    { label:'Kepler-69c',  color:'#a85840', glow:'#5a2818', tex:'venus'   },
-    { label:'Kepler-10c',  color:'#8a7868', glow:'#4a4030', tex:'mercury' },
+    { label:'开普勒-22b',  color:'#5a98b8', glow:'#2a5878', tex:'earth'   },
+    { label:'格利泽581g',  color:'#4a8868', glow:'#1a4838', tex:'earth'   },
+    { label:'开普勒-452b', color:'#5a8878', glow:'#284840', tex:'earth'   },
+    { label:'开普勒-69c',  color:'#a85840', glow:'#5a2818', tex:'venus'   },
+    { label:'开普勒-10c',  color:'#8a7868', glow:'#4a4030', tex:'mercury' },
     { label:'HD 40307g',   color:'#3a6a88', glow:'#1a3858', tex:'earth'   },
-    { label:'Kepler-20b',  color:'#a06848', glow:'#603020', tex:'venus'   },
+    { label:'开普勒-20b',  color:'#a06848', glow:'#603020', tex:'venus'   },
   ],
   [
-    { label:'Jupiter',      color:'#c8a878', glow:'#7a5838', tex:'jupiter'  },
-    { label:'Saturn',       color:'#d8c088', glow:'#8a7048', tex:'saturn'   },
-    { label:'Uranus',       color:'#88c8d8', glow:'#408090', tex:'iceGiant' },
-    { label:'Neptune',      color:'#4868c8', glow:'#203878', tex:'iceGiant' },
-    { label:'HD 189733b',   color:'#3a68a8', glow:'#1a3868', tex:'iceGiant' },
-    { label:'WASP-12b',     color:'#a06848', glow:'#603020', tex:'jupiter'  },
-    { label:'Gliese 436b',  color:'#3a7898', glow:'#1a3858', tex:'iceGiant' },
-    { label:'Fomalhaut b',  color:'#806050', glow:'#402818', tex:'jupiter'  },
+    { label:'木星',        color:'#c8a878', glow:'#7a5838', tex:'jupiter'  },
+    { label:'土星',        color:'#d8c088', glow:'#8a7048', tex:'saturn'   },
+    { label:'天王星',      color:'#88c8d8', glow:'#408090', tex:'iceGiant' },
+    { label:'海王星',      color:'#4868c8', glow:'#203878', tex:'iceGiant' },
+    { label:'HD 189733b',  color:'#3a68a8', glow:'#1a3868', tex:'iceGiant' },
+    { label:'WASP-12b',    color:'#a06848', glow:'#603020', tex:'jupiter'  },
+    { label:'格利泽436b',  color:'#3a7898', glow:'#1a3858', tex:'iceGiant' },
+    { label:'北落师门b',   color:'#806050', glow:'#402818', tex:'jupiter'  },
   ],
   [
-    { label:'L-type Brown Dwarf', color:'#c05828', glow:'#802010', tex:'brownDwarf' },
-    { label:'T-type Brown Dwarf', color:'#804838', glow:'#401818', tex:'brownDwarf' },
-    { label:'Y-type Brown Dwarf', color:'#604838', glow:'#301818', tex:'brownDwarf' },
-    { label:'WISE 0855',          color:'#705848', glow:'#302018', tex:'brownDwarf' },
+    { label:'L型褐矮星', color:'#c05828', glow:'#802010', tex:'brownDwarf' },
+    { label:'T型褐矮星', color:'#804838', glow:'#401818', tex:'brownDwarf' },
+    { label:'Y型褐矮星', color:'#604838', glow:'#301818', tex:'brownDwarf' },
+    { label:'WISE 0855', color:'#705848', glow:'#302018', tex:'brownDwarf' },
   ],
   [
-    { label:'Proxima Centauri',  color:'#d05030', glow:'#a02810', tex:'starM' },
-    { label:"Barnard's Star",    color:'#c04828', glow:'#902010', tex:'starM' },
-    { label:'Sun',               color:'#f8d850', glow:'#c09010', tex:'starG' },
-    { label:'Alpha Centauri A',  color:'#f8d870', glow:'#c09020', tex:'starG' },
-    { label:'Epsilon Eridani',   color:'#e89040', glow:'#b06010', tex:'starK' },
-    { label:'Tau Ceti',          color:'#e89050', glow:'#b06020', tex:'starK' },
+    { label:'比邻星',      color:'#d05030', glow:'#a02810', tex:'starM' },
+    { label:'巴纳德星',    color:'#c04828', glow:'#902010', tex:'starM' },
+    { label:'太阳',        color:'#f8d850', glow:'#c09010', tex:'starG' },
+    { label:'南门二A',     color:'#f8d870', glow:'#c09020', tex:'starG' },
+    { label:'天苑四',      color:'#e89040', glow:'#b06010', tex:'starK' },
+    { label:'鲸鱼座τ星',   color:'#e89050', glow:'#b06020', tex:'starK' },
   ],
   [
-    { label:'Sirius A',  color:'#c8e0f8', glow:'#6090c8', tex:'starA' },
-    { label:'Vega',      color:'#d8e8ff', glow:'#70a0e0', tex:'starA' },
-    { label:'Rigel',     color:'#70a8f8', glow:'#2050c0', tex:'starO' },
-    { label:'Deneb',     color:'#88b8ff', glow:'#3060c0', tex:'starO' },
-    { label:'Pistol Star',color:'#6098e8', glow:'#1040b0', tex:'starO' },
+    { label:'天狼星A', color:'#c8e0f8', glow:'#6090c8', tex:'starA' },
+    { label:'织女星',  color:'#d8e8ff', glow:'#70a0e0', tex:'starA' },
+    { label:'参宿七',  color:'#70a8f8', glow:'#2050c0', tex:'starO' },
+    { label:'天津四',  color:'#88b8ff', glow:'#3060c0', tex:'starO' },
+    { label:'手枪星',  color:'#6098e8', glow:'#1040b0', tex:'starO' },
   ],
   [
-    { label:'Crab Pulsar',  color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
-    { label:'Vela Pulsar',  color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
+    { label:'蟹状脉冲星',   color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
+    { label:'船帆座脉冲星', color:'#e0f0ff', glow:'#80c0ff', tex:'neutron' },
     { label:'SGR 1806-20',  color:'#e8e0ff', glow:'#a080ff', tex:'neutron' },
   ],
   [
-    { label:'Cygnus X-1',       color:'#050510', glow:'#ff9a3c', tex:'blackhole' },
-    { label:'Sagittarius A*',   color:'#050510', glow:'#ff7a2c', tex:'blackhole' },
-    { label:'M87*',             color:'#050510', glow:'#ffaa4c', tex:'blackhole' },
-    { label:'3C 273',           color:'#050510', glow:'#ff9a5c', tex:'blackhole' },
+    { label:'天鹅座X-1', color:'#050510', glow:'#ff9a3c', tex:'blackhole' },
+    { label:'人马座A*',  color:'#050510', glow:'#ff7a2c', tex:'blackhole' },
+    { label:'M87*',      color:'#050510', glow:'#ffaa4c', tex:'blackhole' },
+    { label:'3C 273',    color:'#050510', glow:'#ff9a5c', tex:'blackhole' },
   ],
 ];
 
@@ -826,16 +833,176 @@ const game = {
   maxStage: 0,
   finale: null,
   poemShown: false,
+  deathTimer: 0,          // ← 新增：死亡爆炸倒计时
+
+  controlMode: 'pointer',
+  stick: {
+    active: false,
+    pointerId: null,
+    anchorX: 0, anchorY: 0,
+    curX: 0, curY: 0,
+    dirX: 0, dirY: 0,
+    strength: 0,
+  },
 };
 
 game.mouse.sx = window.innerWidth/2;
 game.mouse.sy = window.innerHeight/2;
 
-/* ============================================================
-   Pointer Events
-   ============================================================ */
+const poemState = {
+  active: false,
+  t: 0,
+  particles: [],
+  cx: 0, cy: 0,
+  tLine1: 1.4,
+  tLine2: 3.8,
+  tOverlay: 7.5,
+  overlayShown: false,
+};
+
+function startPoemAnimation(){
+  poemState.active = true;
+  poemState.t = 0;
+  poemState.overlayShown = false;
+  poemState.cx = W/2;
+  poemState.cy = H/2;
+  poemState.particles = [];
+
+  const count = 900;
+  for (let i = 0; i < count; i++){
+    const a = Math.random() * TAU;
+    let speed, size;
+    const tier = Math.random();
+    if (tier < 0.08){
+      speed = rand(60, 110);
+      size = rand(1.8, 3.2);
+    } else if (tier < 0.35){
+      speed = rand(30, 70);
+      size = rand(1.0, 1.9);
+    } else {
+      speed = rand(10, 40);
+      size = rand(0.4, 1.0);
+    }
+
+    poemState.particles.push({
+      x: poemState.cx,
+      y: poemState.cy,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      size: size,
+      life: 1,
+      decay: rand(0.006, 0.028),
+      tw: Math.random() * TAU,
+      color: Math.random() < 0.22 ? '#ffd8a8' : (Math.random() < 0.42 ? '#a9c8ff' : '#ffffff'),
+    });
+  }
+}
+
+function updatePoemAnimation(dt){
+  poemState.t += dt;
+
+  for (let i = poemState.particles.length - 1; i >= 0; i--){
+    const p = poemState.particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    // 阻尼放缓：不再几十像素就"刹停"，让星尘持续缓慢飘散
+    p.vx *= Math.pow(0.72, dt);
+    p.vy *= Math.pow(0.72, dt);
+
+    // 缓慢涡旋，避免粒子完全停住，视觉上一直"活着"
+    const swirlK = 0.00035;
+    p.vx += (-(p.y - poemState.cy)) * swirlK * dt * 60;
+    p.vy += ( (p.x - poemState.cx)) * swirlK * dt * 60;
+
+    p.life -= p.decay * dt * 6;
+    if (p.life <= 0){
+      poemState.particles.splice(i, 1);
+    }
+  }
+
+  if (poemState.t >= poemState.tOverlay && !poemState.overlayShown){
+    poemState.overlayShown = true;
+    showPoemOver();
+  }
+}
+
+function drawPoemLine(text, cx, cy, progress){
+  if (progress <= 0) return;
+  const blur = (1 - progress) * 22;
+  const dy = (1 - progress) * 14;
+  // 文字轻微呼吸，避免淡入完成后完全静止
+  const breathe = 0.9 + 0.1 * Math.sin(poemState.t * 1.6);
+
+  const fs = clamp(W * 0.04, 14, 25);
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `300 ${fs}px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif`;
+  ctx.shadowBlur = blur;
+  ctx.shadowColor = 'rgba(140,200,255,0.92)';
+  ctx.globalAlpha = progress * breathe;
+  ctx.fillStyle = '#e0ecff';
+  ctx.fillText(text, cx, cy + dy);
+  ctx.restore();
+}
+
+function drawPoemAnimation(){
+  const time = poemState.t;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of poemState.particles){
+    const tw = 0.6 + 0.4 * Math.sin(time * 2.2 + p.tw);
+    ctx.globalAlpha = clamp(p.life, 0, 1) * tw * 0.9;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  const p1 = clamp((time - poemState.tLine1) / 2.0, 0, 1);
+  const p2 = clamp((time - poemState.tLine2) / 2.2, 0, 1);
+
+  if (p1 > 0){
+    drawPoemLine('在微小的沙粒中', W/2, H * 0.40, p1);
+  }
+  if (p2 > 0){
+    drawPoemLine('也藏着许多鲜为人知的壮丽诗篇', W/2, H * 0.49, p2);
+  }
+}
+
 let isPointerDown = false;
 let activePointerId = null;
+
+function stickMaxR(){
+  return Math.min(64, Math.min(W, H) * 0.14);
+}
+const STICK_DEAD = 6;
+
+function updateStickFromPoint(px, py){
+  const s = game.stick;
+  s.curX = px; s.curY = py;
+  const dx = s.curX - s.anchorX;
+  const dy = s.curY - s.anchorY;
+  const len = Math.hypot(dx, dy);
+  const maxR = stickMaxR();
+  if (len > STICK_DEAD){
+    s.dirX = dx / len;
+    s.dirY = dy / len;
+    s.strength = clamp((len - STICK_DEAD) / (maxR - STICK_DEAD), 0, 1);
+  } else {
+    s.dirX = 0; s.dirY = 0; s.strength = 0;
+  }
+}
+
+function resetStick(){
+  const s = game.stick;
+  s.active = false;
+  s.pointerId = null;
+  s.dirX = 0; s.dirY = 0; s.strength = 0;
+}
 
 function setPointerTarget(x, y){
   game.mouse.sx = x;
@@ -846,13 +1013,24 @@ cv.addEventListener('pointerdown', e => {
   if (game.state !== 'play') return;
   isPointerDown = true;
   activePointerId = e.pointerId;
-  setPointerTarget(e.clientX, e.clientY);
   try { cv.setPointerCapture(e.pointerId); } catch(_) {}
 
-  if (e.pointerType !== 'mouse'){
-    game.touchIndicator.active = true;
-    game.touchIndicator.x = e.clientX;
-    game.touchIndicator.y = e.clientY;
+  if (e.pointerType === 'mouse'){
+    game.controlMode = 'pointer';
+    setPointerTarget(e.clientX, e.clientY);
+    game.touchIndicator.active = false;
+    resetStick();
+  } else {
+    game.controlMode = 'stick';
+    const s = game.stick;
+    s.active = true;
+    s.pointerId = e.pointerId;
+    s.anchorX = e.clientX;
+    s.anchorY = e.clientY;
+    s.curX = e.clientX;
+    s.curY = e.clientY;
+    s.dirX = 0; s.dirY = 0; s.strength = 0;
+    game.touchIndicator.active = false;
   }
   e.preventDefault();
 }, {passive:false});
@@ -860,12 +1038,14 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   if (game.state !== 'play') return;
 
-  if (e.pointerType === 'mouse' || isPointerDown){
+  if (e.pointerType === 'mouse'){
+    game.controlMode = 'pointer';
     setPointerTarget(e.clientX, e.clientY);
-    if (game.touchIndicator.active){
-      game.touchIndicator.x = e.clientX;
-      game.touchIndicator.y = e.clientY;
-    }
+    return;
+  }
+
+  if (game.stick.active && e.pointerId === game.stick.pointerId){
+    updateStickFromPoint(e.clientX, e.clientY);
   }
 }, {passive:true});
 
@@ -873,6 +1053,9 @@ function endPointer(e){
   if (e.pointerId === activePointerId){
     isPointerDown = false;
     activePointerId = null;
+  }
+  if (game.stick.active && e.pointerId === game.stick.pointerId){
+    resetStick();
   }
   game.touchIndicator.active = false;
 }
@@ -883,33 +1066,46 @@ if (!window.PointerEvent){
   cv.addEventListener('touchstart', e=>{
     if (!e.touches.length) return;
     const t = e.touches[0];
-    setPointerTarget(t.clientX, t.clientY);
+    game.controlMode = 'stick';
+    const s = game.stick;
+    s.active = true;
+    s.pointerId = t.identifier;
+    s.anchorX = t.clientX;
+    s.anchorY = t.clientY;
+    s.curX = t.clientX;
+    s.curY = t.clientY;
+    s.dirX = 0; s.dirY = 0; s.strength = 0;
     isPointerDown = true;
-    game.touchIndicator.active = true;
-    game.touchIndicator.x = t.clientX;
-    game.touchIndicator.y = t.clientY;
     e.preventDefault();
   }, {passive:false});
+
   cv.addEventListener('touchmove', e=>{
     if (!e.touches.length) return;
-    const t = e.touches[0];
-    setPointerTarget(t.clientX, t.clientY);
-    game.touchIndicator.x = t.clientX;
-    game.touchIndicator.y = t.clientY;
+    const s = game.stick;
+    let t = null;
+    for (let i=0;i<e.touches.length;i++){
+      if (e.touches[i].identifier === s.pointerId){ t = e.touches[i]; break; }
+    }
+    if (!t) t = e.touches[0];
+    updateStickFromPoint(t.clientX, t.clientY);
     e.preventDefault();
   }, {passive:false});
-  cv.addEventListener('touchend', ()=>{
+
+  cv.addEventListener('touchend', e=>{
+    let still = false;
+    for (let i=0;i<e.touches.length;i++){
+      if (e.touches[i].identifier === game.stick.pointerId){ still = true; break; }
+    }
+    if (!still) resetStick();
     isPointerDown = false;
-    game.touchIndicator.active = false;
   });
+
   window.addEventListener('mousemove', e=>{
+    game.controlMode = 'pointer';
     setPointerTarget(e.clientX, e.clientY);
   });
 }
 
-/* ============================================================
-   Evolution (label follows texture)
-   ============================================================ */
 function evolveEntity(ent, newStage){
   if (!ent || newStage <= ent.stage) return false;
   ent.stage = newStage;
@@ -922,7 +1118,6 @@ function evolveEntity(ent, newStage){
   return true;
 }
 
-/* 彗星撞击玩家导致质量下降后，同步更新阶段与变体 */
 function syncPlayerStage(p){
   const ns = stageOf(p.mass);
   if (ns !== p.stage){
@@ -1390,7 +1585,7 @@ class Comet {
         this.dead = true;
         p.mass = Math.max(10, p.mass - 150);
         p.r = radiusOf(p.mass);
-        syncPlayerStage(p);   /* FIX: 质量下降后同步阶段 */
+        syncPlayerStage(p);
         game.shake = 6;
         addSparks(this.x, this.y, '#90e0ff', 25);
         return;
@@ -1481,11 +1676,13 @@ function spawnComet(){
   game.comets.push(new Comet(x, y, Math.cos(toPlayer) * spd, Math.sin(toPlayer) * spd));
 }
 
+const INITIAL_MASS = 40000;
+
 function resetGame(){
   const p = {
     x:0, y:0, vx:0, vy:0,
-    mass: 100,
-    r: radiusOf(100),
+    mass: INITIAL_MASS,
+    r: radiusOf(INITIAL_MASS),
     angle: 0,
     stage: 0,
     variant: 0,
@@ -1510,7 +1707,15 @@ function resetGame(){
   game.maxStage = 0;
   game.finale   = null;
   game.poemShown = false;
+  game.deathTimer = 0;
   game.state    = 'play';
+
+  poemState.active = false;
+  poemState.t = 0;
+  poemState.particles = [];
+  poemState.overlayShown = false;
+
+  resetStick();
 
   for (let i=0;i<70;i++) spawnEnemy(true);
 }
@@ -1675,20 +1880,31 @@ function triggerPlayerShatter(p, e){
   }
 }
 
+/* =========================================================
+   关键修改：gameOver 不再立即弹结算，而是先进入 'dying' 状态，
+   让爆炸 / 火花 / 涟漪 / 屏幕震动继续跑 1.6 秒。
+   ========================================================= */
 function gameOver(){
   if (game.state !== 'play') return;
   if (game.finale || game.poemShown) return;
-  game.state = 'over';
-  showOver();
+
+  game.state = 'dying';
+  game.deathTimer = 1.6;
+  game.shake = Math.max(game.shake, 14);
+  resetStick();
 }
 
 function updateCamera(dt){
   const p = game.player;
   const targetZoom = clamp(80 / p.r, 0.05, 1.15);
 
-  game.cam.x += (p.x - game.cam.x) * Math.min(1, dt*6.5);
-  game.cam.y += (p.y - game.cam.y) * Math.min(1, dt*6.5);
-  game.cam.zoom += (targetZoom - game.cam.zoom) * Math.min(1, dt*3.2);
+  const lookX = p.x + p.vx * 0.12;
+  const lookY = p.y + p.vy * 0.12;
+
+  const k = Math.min(1, dt * 4.2);
+  game.cam.x += (lookX - game.cam.x) * k;
+  game.cam.y += (lookY - game.cam.y) * k;
+  game.cam.zoom += (targetZoom - game.cam.zoom) * Math.min(1, dt * 3.0);
 
   game.mouse.wx = game.cam.x + (game.mouse.sx - W/2) / game.cam.zoom;
   game.mouse.wy = game.cam.y + (game.mouse.sy - H/2) / game.cam.zoom;
@@ -1696,18 +1912,39 @@ function updateCamera(dt){
 
 function updatePlayer(dt){
   const p = game.player;
-  const dx = game.mouse.wx - p.x, dy = game.mouse.wy - p.y;
-  const d  = Math.hypot(dx,dy);
-  const speed = 260 / game.cam.zoom;
+  const zoom = game.cam.zoom;
 
-  if (d > p.r*0.6 && d > 1){
-    const tvx = dx/d * speed, tvy = dy/d * speed;
-    const acc = Math.min(1, dt*3.2);
+  const maxSpeed = 190 / zoom;
+  const acc = Math.min(1, dt * 2.4);
+
+  let tvx = 0, tvy = 0, hasInput = false;
+
+  if (game.controlMode === 'stick'){
+    const s = game.stick;
+    if (s.active && s.strength > 0.02){
+      tvx = s.dirX * maxSpeed * s.strength;
+      tvy = s.dirY * maxSpeed * s.strength;
+      hasInput = true;
+    }
+  } else {
+    const dx = game.mouse.wx - p.x, dy = game.mouse.wy - p.y;
+    const d  = Math.hypot(dx,dy);
+    if (d > p.r * 0.6 && d > 1){
+      const ease = clamp((d - p.r * 0.6) / (p.r * 2.4 + 40 / zoom), 0.25, 1);
+      const sp = maxSpeed * ease;
+      tvx = dx / d * sp;
+      tvy = dy / d * sp;
+      hasInput = true;
+    }
+  }
+
+  if (hasInput){
     p.vx += (tvx - p.vx) * acc;
     p.vy += (tvy - p.vy) * acc;
   } else {
-    p.vx *= Math.pow(0.0006, dt);
-    p.vy *= Math.pow(0.0006, dt);
+    const stop = Math.pow(0.0008, dt);
+    p.vx *= stop;
+    p.vy *= stop;
   }
 
   p.x += p.vx*dt; p.y += p.vy*dt;
@@ -1726,110 +1963,122 @@ function updatePlayer(dt){
       color: (CATALOG[ns][0] && CATALOG[ns][0].glow) || '#ffffff'
     });
     addSparks(p.x, p.y, (CATALOG[ns][0] && CATALOG[ns][0].glow) || '#ffffff', 30);
-  }
 
-  if (ns >= 10 && !game.finale && game.state === 'play' && !game.poemShown){
-    startFinale();
+    if (ns >= 10 && !game.finale && !game.poemShown){
+      startFinale();
+      return;
+    }
   }
 }
 
-function updateEnemies(dt){
-  const p = game.player;
-  const viewR = Math.max(W,H) / (2*game.cam.zoom);
+function updateEnemies(dt) {
+    if (game.finale) return;
 
-  for (let i = game.enemies.length - 1; i >= 0; i--){
-    const e = game.enemies[i];
-    if (e.dead){ game.enemies.splice(i, 1); continue; }
+    const p = game.player;
+    const viewR = Math.max(W, H) / (2 * game.cam.zoom);
 
-    const dx = p.x - e.x, dy = p.y - e.y;
-    const d  = Math.hypot(dx,dy) || 1;
+    for (let i = game.enemies.length - 1; i >= 0; i--) {
+        const e = game.enemies[i];
+        if (e.dead) { game.enemies.splice(i, 1); continue; }
 
-    if (d < p.r + e.r){
-      const ratio = p.mass / e.mass;
-      if (ratio > CAN_TEAR_RATIO){
-        if (e.r < 4 || game.events.length >= 12) {
-          devourDirect(e, p, true);
-        } else {
-          startTidalDisruption(e, p, true);
+        const dx = p.x - e.x, dy = p.y - e.y;
+        const d = Math.hypot(dx, dy) || 1;
+
+        if (d < p.r + e.r) {
+            const ratio = p.mass / e.mass;
+            if (ratio > CAN_TEAR_RATIO) {
+                if (e.r < 4 || game.events.length >= 12) {
+                    devourDirect(e, p, true);
+                } else {
+                    startTidalDisruption(e, p, true);
+                }
+            } else if (ratio < 1 / 2.8 && e.mass > p.mass * 2.5) {
+                /* ========== 关键修改：直接撞死时也要有爆炸特效 ========== */
+                game.events.push(new MutualCrashEvent(
+                    p.x, p.y,
+                    Math.max(p.r, e.r) * 1.5,
+                    '#ff3333', e.color || '#4a80c0'
+                ));
+                game.shake = 16;
+                addSparks(p.x, p.y, '#ffaa44', 60);
+                gameOver();
+                return;
+            } else {
+                triggerPlayerShatter(p, e);
+            }
+
+            if (!game.finale && !game.poemShown && stageOf(p.mass) >= 10) {
+                startFinale();
+                return;
+            }
         }
-      } else if (ratio < 1 / 2.8 && e.mass > p.mass * 2.5){
-        gameOver(); return;
-      } else {
-        triggerPlayerShatter(p, e);
-      }
 
-      /* FIX: 玩家在同一帧被吞噬升级到黑洞时，立即进入终章，避免后续判定 gameOver */
-      if (!game.finale && !game.poemShown && stageOf(p.mass) >= 10){
-        startFinale();
-        return;
-      }
-    }
-
-    if (e.debris){
-      const pull = 1500 * (1 - clamp(d / (viewR * 1.8), 0, 0.92));
-      e.vx += (dx / d) * pull * dt;
-      e.vy += (dy / d) * pull * dt;
-      e.angle += e.spin * dt;
-      const dampD = Math.pow(0.55, dt);
-      e.vx *= dampD; e.vy *= dampD;
-      e.x += e.vx*dt; e.y += e.vy*dt;
-      if (d > viewR * 4.5) game.enemies.splice(i, 1);
-      continue;
-    }
-
-    if (d > viewR * 1.3) {
-      const pullForce = (d - viewR * 1.25) * 1.2 * dt;
-      e.vx += (dx / d) * pullForce;
-      e.vy += (dy / d) * pullForce;
-    }
-
-    e.aiTimer = (e.aiTimer || 0) - dt;
-
-    if (d < viewR * 1.2) {
-      if (e.mass > p.mass * 1.15) {
-        e.vx += (dx / d) * 48 * dt;
-        e.vy += (dy / d) * 48 * dt;
-      } else if (p.mass > e.mass * 1.25) {
-        if (e.aiMode === 'orbit') {
-          const tangentX = -dy / d, tangentY = dx / d;
-          e.vx += (tangentX * 40 - (dx / d) * 12) * dt;
-          e.vy += (tangentY * 40 - (dy / d) * 12) * dt;
-        } else {
-          e.vx -= (dx / d) * 28 * dt;
-          e.vy -= (dy / d) * 28 * dt;
+        if (e.debris) {
+            const pull = 1500 * (1 - clamp(d / (viewR * 1.8), 0, 0.92));
+            e.vx += (dx / d) * pull * dt;
+            e.vy += (dy / d) * pull * dt;
+            e.angle += e.spin * dt;
+            const dampD = Math.pow(0.55, dt);
+            e.vx *= dampD; e.vy *= dampD;
+            e.x += e.vx * dt; e.y += e.vy * dt;
+            if (d > viewR * 4.5) game.enemies.splice(i, 1);
+            continue;
         }
-      }
-    }
 
-    if (e.aiTimer <= 0) {
-      let nearestSmallerDist = Infinity, targetPrey = null;
-      for (let j=0; j<game.enemies.length; j++){
-        if (i === j) continue;
-        const other = game.enemies[j];
-        if (other.dead || other.debris) continue;
-        const odist = Math.hypot(other.x - e.x, other.y - e.y);
-
-        if (odist < viewR * 0.8 && e.mass > other.mass * CAN_TEAR_RATIO && odist < nearestSmallerDist) {
-          nearestSmallerDist = odist; targetPrey = other;
+        if (d > viewR * 1.3) {
+            const pullForce = (d - viewR * 1.25) * 1.2 * dt;
+            e.vx += (dx / d) * pullForce;
+            e.vy += (dy / d) * pullForce;
         }
-      }
 
-      if (targetPrey) {
-        const tdx = targetPrey.x - e.x, tdy = targetPrey.y - e.y;
-        const tdist = Math.hypot(tdx, tdy) || 1;
-        e.vx += (tdx / tdist) * 40 * dt; e.vy += (tdy / tdist) * 40 * dt;
-      }
+        e.aiTimer = (e.aiTimer || 0) - dt;
 
-      e.aiTimer = rand(1.8, 3.5);
+        if (d < viewR * 1.2) {
+            if (e.mass > p.mass * 1.15) {
+                const chase = 22 + 14 * clamp(1 - d / (viewR * 1.2), 0, 1);
+                e.vx += (dx / d) * chase * dt;
+                e.vy += (dy / d) * chase * dt;
+            } else if (p.mass > e.mass * 1.25) {
+                if (e.aiMode === 'orbit') {
+                    const tangentX = -dy / d, tangentY = dx / d;
+                    e.vx += (tangentX * 40 - (dx / d) * 12) * dt;
+                    e.vy += (tangentY * 40 - (dy / d) * 12) * dt;
+                } else {
+                    e.vx -= (dx / d) * 28 * dt;
+                    e.vy -= (dy / d) * 28 * dt;
+                }
+            }
+        }
+
+        if (e.aiTimer <= 0) {
+            let nearestSmallerDist = Infinity, targetPrey = null;
+            for (let j = 0; j < game.enemies.length; j++) {
+                if (i === j) continue;
+                const other = game.enemies[j];
+                if (other.dead || other.debris) continue;
+                const odist = Math.hypot(other.x - e.x, other.y - e.y);
+
+                if (odist < viewR * 0.8 && e.mass > other.mass * CAN_TEAR_RATIO && odist < nearestSmallerDist) {
+                    nearestSmallerDist = odist; targetPrey = other;
+                }
+            }
+
+            if (targetPrey) {
+                const tdx = targetPrey.x - e.x, tdy = targetPrey.y - e.y;
+                const tdist = Math.hypot(tdx, tdy) || 1;
+                e.vx += (tdx / tdist) * 40 * dt; e.vy += (tdy / tdist) * 40 * dt;
+            }
+
+            e.aiTimer = rand(1.8, 3.5);
+        }
+
+        const damp = Math.pow(0.78, dt);
+        e.vx *= damp; e.vy *= damp;
+        e.x += e.vx * dt; e.y += e.vy * dt;
+        e.angle += e.spin * dt;
+
+        if (d > viewR * 2.8) game.enemies.splice(i, 1);
     }
-
-    const damp = Math.pow(0.78, dt);
-    e.vx *= damp; e.vy *= damp;
-    e.x += e.vx*dt; e.y += e.vy*dt;
-    e.angle += e.spin*dt;
-
-    if (d > viewR * 2.8) game.enemies.splice(i, 1);
-  }
 }
 
 function updateComets(dt){
@@ -1913,169 +2162,173 @@ function spawnLogic(dt){
   }
 }
 
-/* ============================================================
-   Binary Black Hole finale
-   ============================================================ */
-function startFinale(){
-  if (game.finale || game.poemShown) return;
+    function startFinale() {
+        if (game.finale || game.poemShown) return;
 
-  const p = game.player;
-  p.stage = 10;
-  p.variant = 0;
+        const p = game.player;
+        p.stage = 10;
+        p.variant = 0;
 
-  const ang = Math.random() * TAU;
+        const ang = Math.random() * TAU;
 
-  game.meteors.length = 0;
-  game.comets.length = 0;
-  for (const e of game.enemies){
-    if (!e.dead) addSparks(e.x, e.y, e.color || '#8ab4ff', 4);
-  }
-  game.enemies.length = 0;
-  game.events.length = 0;
+        game.meteors.length = 0;
+        game.comets.length = 0;
+        for (const e of game.enemies) {
+            if (!e.dead) addSparks(e.x, e.y, e.color || '#8ab4ff', 4);
+        }
+        game.enemies.length = 0;
+        game.events.length = 0;
+        resetStick();
 
-  const D0 = Math.max(p.r * 6.0, 200);
-  const partnerMass = p.mass * 0.86;
-  const partner = {
-    x: p.x + Math.cos(ang) * D0,
-    y: p.y + Math.sin(ang) * D0,
-    mass: partnerMass,
-    r: radiusOf(partnerMass),
-    stage: 10,
-    variant: Math.floor(Math.random() * CATALOG[10].length),
-    label: '',
-    color: CATALOG[10][0].color,
-    glow: CATALOG[10][0].glow,
-    angle: Math.random() * TAU,
-    spin: 0.6,
-  };
+        const D0 = Math.max(p.r * 6.0, 200);
+        const partnerMass = p.mass * 0.86;
 
-  const mt = p.mass + partnerMass;
-  game.finale = {
-    phase: 'inspiral',
-    t: 0,
-    duration: 9.5,
-    partner,
-    D0,
-    D: D0,
-    theta: ang,
-    cx: (p.x * p.mass + partner.x * partnerMass) / mt,
-    cy: (p.y * p.mass + partner.y * partnerMass) / mt,
-    waveTimer: 0,
-    mergerT: 0,
-    flash: 0,
-  };
+        const partnerVariantIdx = Math.floor(Math.random() * CATALOG[10].length);
 
-  game.shake = 6;
-  game.ripples.push({ x: game.finale.cx, y: game.finale.cy, r: p.r, max: p.r * 8, life: 1.2, color: '#9ac8ff' });
-}
+        const partner = {
+            x: p.x + Math.cos(ang) * D0,
+            y: p.y + Math.sin(ang) * D0,
+            mass: partnerMass,
+            r: radiusOf(partnerMass),
+            stage: 10,
+            variant: partnerVariantIdx,
+            label: CATALOG[10][partnerVariantIdx].label,
+            color: CATALOG[10][0].color,
+            glow: CATALOG[10][0].glow,
+            angle: Math.random() * TAU,
+            spin: 0.6,
+        };
 
-function updateFinale(dt){
-  const f = game.finale;
-  const p = game.player;
-  const q = f.partner;
+        const mt = p.mass + partnerMass;
+        game.finale = {
+            phase: 'inspiral',
+            t: 0,
+            duration: 9.5,
+            partner,
+            D0,
+            D: D0,
+            theta: ang,
+            cx: (p.x * p.mass + partner.x * partnerMass) / mt,
+            cy: (p.y * p.mass + partner.y * partnerMass) / mt,
+            waveTimer: 0,
+            mergerT: 0,
+            flash: 0,
+        };
 
-  if (f.phase === 'inspiral'){
-    f.t += dt;
-    const k = clamp(f.t / f.duration, 0, 1);
-
-    const minD = (p.r + q.r) * 1.12 + 6;
-    f.D = minD + (f.D0 - minD) * Math.pow(1 - k, 0.85);
-
-    const omega = 0.55 + 4.2 * Math.pow(k, 1.7);
-    f.theta += omega * dt;
-
-    const mt = Math.max(1, p.mass + q.mass);
-    const r1 = f.D * q.mass / mt;
-    const r2 = f.D * p.mass / mt;
-
-    p.x = f.cx + Math.cos(f.theta) * r1;
-    p.y = f.cy + Math.sin(f.theta) * r1;
-    q.x = f.cx - Math.cos(f.theta) * r2;
-    q.y = f.cy - Math.sin(f.theta) * r2;
-
-    p.angle += dt * (1.2 + k * 3);
-    q.angle += dt * (1.6 + k * 3.4);
-    p.vx = p.vy = 0;
-
-    const drain = q.mass * (0.05 + k * 0.18) * dt;
-    q.mass = Math.max(1, q.mass - drain);
-    p.mass += drain;
-    p.r = radiusOf(p.mass);
-    q.r = radiusOf(q.mass);
-
-    f.waveTimer -= dt;
-    if (f.waveTimer <= 0){
-      game.ripples.push({
-        x: f.cx, y: f.cy, r: f.D * 0.5, max: f.D * 3.6,
-        life: 1.0, color: '#9ac8ff'
-      });
-      f.waveTimer = Math.max(0.06, 0.3 - k * 0.24);
+        game.shake = 6;
+        game.ripples.push({ x: game.finale.cx, y: game.finale.cy, r: p.r, max: p.r * 8, life: 1.2, color: '#9ac8ff' });
     }
 
-    if (Math.random() < 0.55){
-      const a = Math.random() * TAU;
-      const rr = f.D * 0.5;
-      game.sparks.push({
-        x: f.cx + Math.cos(a) * rr,
-        y: f.cy + Math.sin(a) * rr,
-        vx: -Math.sin(a) * rand(40, 150),
-        vy: Math.cos(a) * rand(40, 150),
-        life: 1, color: '#a8c8ff', size: rand(1, 3.2)
-      });
+    function updateFinale(dt) {
+        const f = game.finale;
+        const p = game.player;
+        const q = f.partner;
+
+        if (f.phase === 'inspiral') {
+            f.t += dt;
+            const k = clamp(f.t / f.duration, 0, 1);
+
+            const minD = (p.r + q.r) * 1.12 + 6;
+            f.D = minD + (f.D0 - minD) * Math.pow(1 - k, 0.85);
+
+            const omega = 0.55 + 4.2 * Math.pow(k, 1.7);
+            f.theta += omega * dt;
+
+            const mt = Math.max(1, p.mass + q.mass);
+            const r1 = f.D * q.mass / mt;
+            const r2 = f.D * p.mass / mt;
+
+            p.x = f.cx + Math.cos(f.theta) * r1;
+            p.y = f.cy + Math.sin(f.theta) * r1;
+            q.x = f.cx - Math.cos(f.theta) * r2;
+            q.y = f.cy - Math.sin(f.theta) * r2;
+
+            p.angle += dt * (1.2 + k * 3);
+            q.angle += dt * (1.6 + k * 3.4);
+            p.vx = p.vy = 0;
+
+            const drain = q.mass * (0.05 + k * 0.18) * dt;
+            q.mass = Math.max(1, q.mass - drain);
+            p.mass += drain;
+            p.r = radiusOf(p.mass);
+            q.r = radiusOf(q.mass);
+
+            f.waveTimer -= dt;
+            if (f.waveTimer <= 0) {
+                game.ripples.push({
+                    x: f.cx, y: f.cy, r: f.D * 0.5, max: f.D * 3.6,
+                    life: 1.0, color: '#9ac8ff'
+                });
+                f.waveTimer = Math.max(0.06, 0.3 - k * 0.24);
+            }
+
+            if (Math.random() < 0.55) {
+                const a = Math.random() * TAU;
+                const rr = f.D * 0.5;
+                game.sparks.push({
+                    x: f.cx + Math.cos(a) * rr,
+                    y: f.cy + Math.sin(a) * rr,
+                    vx: -Math.sin(a) * rand(40, 150),
+                    vy: Math.cos(a) * rand(40, 150),
+                    life: 1, color: '#a8c8ff', size: rand(1, 3.2)
+                });
+            }
+
+            game.shake = 2 + k * 10;
+
+            if (k >= 1) {
+                f.phase = 'merger';
+                f.mergerT = 0;
+                f.flash = 1;
+                game.shake = 22;
+
+                const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+                game.events.push(new MutualCrashEvent(mx, my, Math.max(p.r, q.r) * 1.2, '#dff0ff', '#8ab4ff'));
+                for (let i = 0; i < 6; i++) {
+                    game.ripples.push({
+                        x: mx, y: my, r: p.r * 1.2, max: p.r * (10 + i * 7),
+                        life: 1.6, color: i % 2 ? '#ffffff' : '#9ac8ff'
+                    });
+                }
+                addSparks(mx, my, '#ffffff', 120);
+
+                p.mass += q.mass;
+                p.r = radiusOf(p.mass);
+                p.x = mx; p.y = my;
+                q.mass = 0; q.r = 0;
+                f.cx = mx; f.cy = my;
+            }
+        } else if (f.phase === 'merger') {
+            f.mergerT += dt;
+            f.flash = Math.max(0, f.flash - dt * 0.75);
+            game.shake = Math.max(0, 22 - f.mergerT * 12);
+            p.angle += dt * 2.2;
+
+            if (f.mergerT > 2.6) {
+                f.phase = 'done';
+                endWithPoem();
+            }
+            if (f.mergerT > 6.0 && !game.poemShown) {
+                endWithPoem();
+            }
+        }
+
+        const span = Math.max(f.D + (p.r + q.r) * 2.4, p.r * 5.5, 240);
+        const targetZoom = clamp(Math.min(W, H) * 0.9 / span, 0.008, 1.15);
+        const camLerp = Math.min(1, dt * (f.phase === 'merger' ? 2.2 : 3.0));
+        game.cam.x += (f.cx - game.cam.x) * camLerp;
+        game.cam.y += (f.cy - game.cam.y) * camLerp;
+        game.cam.zoom += (targetZoom - game.cam.zoom) * Math.min(1, dt * 1.8);
     }
-
-    game.shake = 2 + k * 10;
-
-    if (k >= 1){
-      f.phase = 'merger';
-      f.mergerT = 0;
-      f.flash = 1;
-      game.shake = 22;
-
-      const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
-      game.events.push(new MutualCrashEvent(mx, my, Math.max(p.r, q.r) * 1.2, '#dff0ff', '#8ab4ff'));
-      for (let i = 0; i < 6; i++){
-        game.ripples.push({
-          x: mx, y: my, r: p.r * 1.2, max: p.r * (10 + i * 7),
-          life: 1.6, color: i % 2 ? '#ffffff' : '#9ac8ff'
-        });
-      }
-      addSparks(mx, my, '#ffffff', 120);
-
-      p.mass += q.mass;
-      p.r = radiusOf(p.mass);
-      p.x = mx; p.y = my;
-      q.mass = 0; q.r = 0;
-      f.cx = mx; f.cy = my;
-    }
-  } else if (f.phase === 'merger'){
-    f.mergerT += dt;
-    f.flash = Math.max(0, f.flash - dt * 0.75);
-    game.shake = Math.max(0, 22 - f.mergerT * 12);
-    p.angle += dt * 2.2;
-
-    if (f.mergerT > 2.6){
-      f.phase = 'done';
-      endWithPoem();
-    }
-    if (f.mergerT > 6.0 && !game.poemShown){
-      endWithPoem();
-    }
-  }
-
-  const span = Math.max(f.D + (p.r + q.r) * 2.4, p.r * 5.5, 240);
-  const targetZoom = clamp(Math.min(W, H) * 0.9 / span, 0.008, 1.15);
-  const camLerp = Math.min(1, dt * (f.phase === 'merger' ? 2.2 : 3.0));
-  game.cam.x += (f.cx - game.cam.x) * camLerp;
-  game.cam.y += (f.cy - game.cam.y) * camLerp;
-  game.cam.zoom += (targetZoom - game.cam.zoom) * Math.min(1, dt * 1.8);
-}
 
 function endWithPoem(){
   if (game.poemShown) return;
   game.poemShown = true;
-  game.state = 'over';
-  showPoemOver();
+  game.state = 'poem';
+
+  hudEl.classList.remove('on');
+
+  startPoemAnimation();
 }
 
 function drawBackground(){
@@ -2185,44 +2438,58 @@ function drawBody(x, y, r, stageIdx, variantIdx, rot){
   ctx.restore();
 }
 
-function drawLabels(){
-  const zoom = game.cam.zoom;
-  const cam = game.cam;
-  const halfW = W/(2*zoom), halfH = H/(2*zoom);
-  const L = cam.x - halfW, R = cam.x + halfW;
-  const T = cam.y - halfH, B = cam.y + halfH;
+    function drawLabels() {
+        const zoom = game.cam.zoom;
+        const cam = game.cam;
+        const halfW = W / (2 * zoom), halfH = H / (2 * zoom);
+        const L = cam.x - halfW, R = cam.x + halfW;
+        const T = cam.y - halfH, B = cam.y + halfH;
 
-  const isMobile = W < 700;
-  const minScreenR = isMobile ? 8 : 6;
-  const fsMin = isMobile ? 9 : 10;
-  const fsMax = isMobile ? 14 : 18;
+        const isMobile = W < 700;
+        const minScreenR = isMobile ? 8 : 6;
+        const fsMin = isMobile ? 9 : 10;
+        const fsMax = isMobile ? 14 : 18;
 
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.lineJoin = 'round';
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.lineJoin = 'round';
 
-  for (const e of game.enemies){
-    if (e.dead || !e.label) continue;
-    if (e.r * zoom < minScreenR) continue;
-    if (e.x < L || e.x > R || e.y < T || e.y > B) continue;
+        const drawSingleLabel = (label, x, y, r) => {
+            if (!label) return;
+            const fsScreen = clamp(Math.round(r * zoom * 0.55), fsMin, fsMax);
+            const fs = fsScreen / zoom;
+            ctx.font = `600 ${fs}px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif`;
+            const textY = y + r + fs * 0.55;
 
-    const fsScreen = clamp(Math.round(e.r * zoom * 0.55), fsMin, fsMax);
-    const fs = fsScreen / zoom;
+            ctx.lineWidth = Math.max(1.5, fs * 0.22);
+            ctx.strokeStyle = 'rgba(2,4,12,0.88)';
+            ctx.strokeText(label, x, textY);
 
-    ctx.font = `600 ${fs}px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif`;
+            ctx.fillStyle = 'rgba(205,228,255,0.86)';
+            ctx.fillText(label, x, textY);
+        };
 
-    const textY = e.y + e.r + fs * 0.55;
+        for (const e of game.enemies) {
+            if (e.dead || !e.label) continue;
+            if (e.r * zoom < minScreenR) continue;
+            if (e.x < L || e.x > R || e.y < T || e.y > B) continue;
+            drawSingleLabel(e.label, e.x, e.y, e.r);
+        }
 
-    ctx.lineWidth = Math.max(1.5, fs * 0.22);
-    ctx.strokeStyle = 'rgba(2,4,12,0.88)';
-    ctx.strokeText(e.label, e.x, textY);
+        if (game.finale && game.finale.partner) {
+            const p = game.player;
+            const q = game.finale.partner;
 
-    ctx.fillStyle = 'rgba(205,228,255,0.86)';
-    ctx.fillText(e.label, e.x, textY);
-  }
+            const pLabel = p.label || CATALOG[10][0].label;
+            const qLabel = q.label || (CATALOG[10][q.variant] ? CATALOG[10][q.variant].label : '伴星黑洞');
 
-  ctx.restore();
+            if (p.r * zoom >= minScreenR) drawSingleLabel(pLabel, p.x, p.y, p.r);
+            if (q.r * zoom >= minScreenR) drawSingleLabel(qLabel, q.x, q.y, q.r);
+        }
+
+        ctx.restore();
+
 }
 
 function drawWorld(){
@@ -2267,6 +2534,7 @@ function drawWorld(){
     drawBody(q.x, q.y, q.r, q.stage, q.variant, q.angle);
   }
 
+  // 死亡瞬间玩家本体不再绘制（已经被炸碎了），只保留爆炸特效
   if (game.player && game.state === 'play'){
     const pr = p.r * (1 + p.pulse*0.035);
     drawBody(p.x, p.y, pr, p.stage, 0, p.angle);
@@ -2290,19 +2558,48 @@ function drawWorld(){
   }
 }
 
-function drawTouchIndicator(){
-  const ti = game.touchIndicator;
-  if (!ti || !ti.active) return;
+function drawStick(){
+  const s = game.stick;
+  if (!s.active) return;
+
+  const maxR = stickMaxR();
+  const hx = s.anchorX + s.dirX * s.strength * maxR;
+  const hy = s.anchorY + s.dirY * s.strength * maxR;
+
   ctx.save();
+
   ctx.beginPath();
-  ctx.arc(ti.x, ti.y, 24, 0, TAU);
-  ctx.strokeStyle = 'rgba(140,200,255,0.35)';
+  ctx.arc(s.anchorX, s.anchorY, maxR, 0, TAU);
+  ctx.strokeStyle = 'rgba(140,200,255,0.30)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
+
   ctx.beginPath();
-  ctx.arc(ti.x, ti.y, 4, 0, TAU);
-  ctx.fillStyle = 'rgba(140,200,255,0.6)';
+  ctx.arc(s.anchorX, s.anchorY, maxR * 0.36, 0, TAU);
+  ctx.strokeStyle = 'rgba(140,200,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  if (s.strength > 0.02){
+    ctx.beginPath();
+    ctx.moveTo(s.anchorX, s.anchorY);
+    ctx.lineTo(hx, hy);
+    ctx.strokeStyle = 'rgba(150,210,255,0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, 22);
+  g.addColorStop(0, 'rgba(170,220,255,0.70)');
+  g.addColorStop(1, 'rgba(100,170,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(hx, hy, 22, 0, TAU); ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(hx, hy, 10, 0, TAU);
+  ctx.fillStyle = 'rgba(190,230,255,0.90)';
   ctx.fill();
+
   ctx.restore();
 }
 
@@ -2327,7 +2624,11 @@ function render(){
     ctx.restore();
   }
 
-  drawTouchIndicator();
+  if (game.state === 'poem' || poemState.active){
+    drawPoemAnimation();
+  }
+
+  drawStick();
 
   if (game.finale && game.finale.flash > 0.002){
     const a = game.finale.flash;
@@ -2345,59 +2646,92 @@ function render(){
 
 let last = performance.now();
 
-function loop(now){
-  const dt = Math.min((now - last)/1000, 0.05);
-  last = now;
-  game.time += dt;
+/* =========================================================
+   关键修改：loop 里补上 'dying' 和 'over' 分支，
+   让死亡爆炸 / 结算界面背后的特效继续跑。
+   ========================================================= */
+function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    game.time += dt;
 
-  if (game.state === 'play'){
-    game.playTime += dt;
+    if (game.state === 'play') {
+        game.playTime += dt;
 
-    if (game.finale){
-      updateFinale(dt);
-      updateEvents(dt);
-      updateSparks(dt);
-      updateRipples(dt);
-      game.shake *= Math.pow(0.004, dt);
-      if (game.shake < 0.1) game.shake = 0;
-      updateHUD();
-    } else {
-      updateCamera(dt);
-      updatePlayer(dt);
+        if (!game.finale && !game.poemShown && game.player && game.player.mass >= 15000000) {
+            startFinale();
+        }
 
-      if (!game.finale && !game.poemShown && game.player &&
-          stageOf(game.player.mass) >= 10 && game.state === 'play'){
-        startFinale();
-      }
+        if (game.finale) {
+            updateFinale(dt);
+            updateEvents(dt);
+            updateSparks(dt);
+            updateRipples(dt);
+            game.shake *= Math.pow(0.004, dt);
+            if (game.shake < 0.1) game.shake = 0;
+            updateHUD();
+        } else {
+            updateCamera(dt);
+            updatePlayer(dt);
 
-      if (!game.finale){
-        updateEnemies(dt);
-        checkEnemyCollisions();
-        updateComets(dt);
-        updateMeteors(dt);
+            if (!game.finale && !game.poemShown && game.player && stageOf(game.player.mass) >= 10) {
+                startFinale();
+            }
+
+            if (!game.finale) {
+                updateEnemies(dt);
+                checkEnemyCollisions();
+                updateComets(dt);
+                updateMeteors(dt);
+                updateEvents(dt);
+                updateSparks(dt);
+                updateRipples(dt);
+                spawnLogic(dt);
+                game.shake *= Math.pow(0.004, dt);
+                if (game.shake < 0.1) game.shake = 0;
+                updateHUD();
+            } else {
+                updateSparks(dt);
+                updateRipples(dt);
+                game.shake *= Math.pow(0.004, dt);
+                if (game.shake < 0.1) game.shake = 0;
+                updateHUD();
+            }
+        }
+    } else if (game.state === 'dying') {
+        /* 死亡爆炸阶段：只跑特效，不跑 gameplay */
+        game.deathTimer -= dt;
         updateEvents(dt);
         updateSparks(dt);
         updateRipples(dt);
-        spawnLogic(dt);
         game.shake *= Math.pow(0.004, dt);
         if (game.shake < 0.1) game.shake = 0;
         updateHUD();
-      } else {
+        if (game.deathTimer <= 0){
+            game.state = 'over';
+            showOver();
+        }
+    } else if (game.state === 'over') {
+        /* 结算界面背后继续跑特效，避免冻成一帧 */
+        updateEvents(dt);
         updateSparks(dt);
         updateRipples(dt);
         game.shake *= Math.pow(0.004, dt);
         if (game.shake < 0.1) game.shake = 0;
-        updateHUD();
-      }
+    } else if (game.state === 'poem') {
+        updatePoemAnimation(dt);
+        updateEvents(dt);
+        updateSparks(dt);
+        updateRipples(dt);
+        game.shake *= Math.pow(0.004, dt);
+        if (game.shake < 0.1) game.shake = 0;
+    } else if (game.state === 'menu') {
+        game.cam.x += dt * 26; game.cam.y += dt * 9;
     }
-  } else if (game.state === 'menu'){
-    game.cam.x += dt * 26; game.cam.y += dt * 9;
-  }
 
-  render();
-  requestAnimationFrame(loop);
+    render();
+    requestAnimationFrame(loop);
 }
-
 const hudEl   = document.getElementById('hud');
 const stageEl = document.getElementById('stageName');
 const massEl  = document.getElementById('massVal');
@@ -2417,9 +2751,9 @@ function updateHUD(){
 
   if (game.finale){
     const f = game.finale;
-    stageEl.textContent = f.phase === 'inspiral' ? 'Black Hole Binary' : 'Singularity';
+    stageEl.textContent = f.phase === 'inspiral' ? '黑 洞 双 星' : '奇 点';
     massEl.textContent = fmtMass(p.mass);
-    cometEl.textContent = f.phase === 'inspiral' ? 'Gravitational waves radiating…' : 'Spacetime trembles…';
+    cometEl.textContent = f.phase === 'inspiral' ? '引力波辐射中…' : '时空在震颤…';
     fillEl.style.width = '100%';
     if (game.playTime > 7 && hintEl.style.opacity !== '0'){
       hintEl.style.opacity = '0';
@@ -2432,7 +2766,7 @@ function updateHUD(){
   massEl.textContent  = fmtMass(p.mass);
 
   const orbitingCount = game.comets.filter(c => c.state === 'orbit').length;
-  cometEl.textContent = `Orbiting Comets: ${orbitingCount}`;
+  cometEl.textContent = `环绕彗星: ${orbitingCount}`;
 
   const next = STAGES[si+1];
   if (next){
@@ -2457,6 +2791,8 @@ const overTitleEl = document.getElementById('overTitle');
 function showMenu(){
   menuView.style.display = '';
   overView.style.display = 'none';
+  overlayEl.classList.remove('poem-mode');
+  overlayEl.classList.remove('dim');
   overlayEl.classList.remove('hide');
 }
 
@@ -2464,14 +2800,16 @@ function showOver(){
   const p = game.player;
   menuView.style.display = 'none';
   overView.style.display = '';
+  overlayEl.classList.remove('poem-mode');
+  overlayEl.classList.add('dim');     // ← 半透明背景，露出背后的爆炸 / 星空
   overlayEl.classList.remove('hide');
-  overTitleEl.textContent = 'ANNIHILATION';
+  overTitleEl.textContent = '天下英雄如过江之鲫';
 
   resultEl.innerHTML = `
     <span class="big">${STAGES[p.stage].name}</span>
-    Final Mass ${fmtMass(p.mass)}<br>
-    Duration ${game.playTime.toFixed(1)} s<br>
-    Peak Stage ${STAGES[game.maxStage].name}
+    终焉质量 ${fmtMass(p.mass)}<br>
+    存续时间 ${game.playTime.toFixed(1)} 秒<br>
+    最高阶段 ${STAGES[game.maxStage].name}
   `;
   resultEl.classList.remove('fadeIn');
   void resultEl.offsetWidth;
@@ -2481,12 +2819,12 @@ function showOver(){
 function showPoemOver(){
   menuView.style.display = 'none';
   overView.style.display = '';
+  overlayEl.classList.remove('dim');
+  overlayEl.classList.add('poem-mode');
   overlayEl.classList.remove('hide');
-  overTitleEl.textContent = 'POEM OF BINARY STARS';
 
   resultEl.innerHTML = `
-    <div class="poem">在微小的沙粒中<br>也藏着许多鲜为人知的壮丽诗篇</div>
-    <div class="poem-sub">Final Mass ${fmtMass(game.player.mass)} · Duration ${game.playTime.toFixed(1)} s</div>
+    <div class="poem-sub">终焉质量 ${fmtMass(game.player.mass)} · 存续 ${game.playTime.toFixed(1)} 秒</div>
   `;
   resultEl.classList.remove('fadeIn');
   void resultEl.offsetWidth;
@@ -2494,6 +2832,8 @@ function showPoemOver(){
 }
 
 function beginGame(){
+  overlayEl.classList.remove('poem-mode');
+  overlayEl.classList.remove('dim');
   overlayEl.classList.add('hide');
   hudEl.classList.add('on');
   hintEl.style.opacity = '1';
@@ -2502,6 +2842,14 @@ function beginGame(){
   game.touchIndicator.active = false;
   game.mouse.sx = W/2;
   game.mouse.sy = H/2;
+  resetStick();
+
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches){
+    game.controlMode = 'stick';
+  } else {
+    game.controlMode = 'pointer';
+  }
+
   resetGame();
 }
 

@@ -279,145 +279,6 @@
             }
         }
 
-        #nextScene {
-            position: fixed;
-            inset: 0;
-            z-index: 30;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-            background: radial-gradient(circle at 50% 46%, rgba(84,44,10,.50) 0%, rgba(10,7,16,.94) 48%, #010104 100%);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 1.3s cubic-bezier(.4,0,.2,1);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-            #nextScene.show {
-                opacity: 1;
-                pointer-events: auto;
-            }
-
-        .ns-core {
-            position: absolute;
-            left: 50%;
-            top: 44%;
-            width: min(70vmin,520px);
-            aspect-ratio: 1;
-            transform: translate(-50%,-50%);
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,240,210,.20) 0%, rgba(255,160,60,.10) 18%, rgba(130,70,210,.05) 38%, rgba(0,0,0,0) 62%);
-            filter: blur(6px);
-            animation: nsBreath 6s ease-in-out infinite;
-            pointer-events: none;
-        }
-
-        @keyframes nsBreath {
-            0%,100% {
-                transform: translate(-50%,-50%) scale(1);
-                opacity: .75;
-            }
-
-            50% {
-                transform: translate(-50%,-50%) scale(1.08);
-                opacity: 1;
-            }
-        }
-
-        .ns-inner {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            opacity: 0;
-            transform: translateY(18px);
-        }
-
-        #nextScene.show .ns-inner {
-            animation: nsIn 1.2s .35s cubic-bezier(.2,.7,.3,1) both;
-        }
-
-        @keyframes nsIn {
-            to {
-                opacity: 1;
-                transform: none;
-            }
-        }
-
-        .ns-kicker {
-            font-size: clamp(9px,2.4vw,11px);
-            letter-spacing: clamp(4px,1.6vw,7px);
-            color: rgba(255,190,120,.55);
-            margin-bottom: 14px;
-            text-indent: clamp(4px,1.6vw,7px);
-        }
-
-        .ns-title {
-            font-size: clamp(30px,10vw,46px);
-            font-weight: 200;
-            letter-spacing: clamp(6px,2.4vw,12px);
-            text-indent: clamp(6px,2.4vw,12px);
-            background: linear-gradient(180deg,#fff7e8,#ff9a3c);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            line-height: 1.15;
-            margin-bottom: 14px;
-        }
-
-        .ns-desc {
-            font-size: clamp(11px,2.9vw,13px);
-            line-height: 2;
-            letter-spacing: .8px;
-            color: rgba(224,204,182,.62);
-            margin-bottom: clamp(22px,4vh,32px);
-        }
-
-        .ns-stats {
-            display: flex;
-            gap: clamp(18px,6vw,46px);
-            margin-bottom: clamp(26px,4.5vh,38px);
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .ns-stat {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-            .ns-stat .k {
-                font-size: clamp(9px,2.3vw,10px);
-                letter-spacing: 2px;
-                color: rgba(190,170,150,.45);
-            }
-
-            .ns-stat .v {
-                font-size: clamp(15px,4.2vw,20px);
-                font-weight: 600;
-                letter-spacing: 1px;
-                color: #ffd9a8;
-                text-shadow: 0 0 22px rgba(255,150,60,.5);
-            }
-
-        #nsRestart {
-            color: #ffe0bb;
-            background: rgba(255,150,60,.10);
-            border-color: rgba(255,170,90,.45);
-        }
-
-            #nsRestart:hover, #nsRestart:active {
-                background: rgba(255,160,70,.26);
-                border-color: #ffb066;
-                box-shadow: 0 0 34px rgba(255,150,60,.5);
-                color: #fff;
-            }
-
         @media (hover:none) and (pointer:coarse) {
             .hint-desktop {
                 display: none
@@ -476,21 +337,6 @@
                     font-size: 24px;
                     margin-bottom: 8px
                 }
-
-            .ns-desc {
-                display: none
-            }
-
-            .ns-title {
-                font-size: 26px;
-                letter-spacing: 8px;
-                margin-bottom: 10px
-            }
-
-            .ns-stats {
-                margin-bottom: 16px;
-                gap: 16px
-            }
         }
     </style>
 </head>
@@ -525,18 +371,6 @@
         </div>
     </div>
 
-    <!-- 当 NEXT_PAGE_URL 留空时显示的内置结算界面 -->
-    <div id="nextScene">
-        <div class="ns-core"></div>
-        <div class="ns-inner">
-            <div class="ns-kicker">EVENT HORIZON</div>
-            <h2 class="ns-title">事 件 视 界</h2>
-            <p class="ns-desc">双黑洞并合完成<br>一个全新的奇点，在时空深处睁开双眼</p>
-            <div class="ns-stats" id="nsStats"></div>
-            <button class="btn" id="nsRestart">重 新 演 化</button>
-        </div>
-    </div>
-
     <script>
         "use strict";
         const TAU = Math.PI * 2;
@@ -546,8 +380,8 @@
 
         /* =========================================================
            黑洞形成后跳转的页面：
-           - 设为 'ss.html' → 跳转到双星合并终章演示页面
-           - 设为 ''       → 显示内置的「事件视界」结算界面
+           - 'ss.html'                 → 同目录下的 ss.html
+           - 'file:///C:\Users\yangw\Desktop\ss.html'  → 本地绝对路径（注意正斜杠）
            ========================================================= */
         const NEXT_PAGE_URL = 'ss.html';
 
@@ -1142,6 +976,7 @@
             /* 黑洞终章状态 */
             outroStarted: false,
             outroTimer: 0,
+            redirectStarted: false,
             sceneStarted: false,
 
             controlMode: 'pointer',
@@ -2018,6 +1853,7 @@
             /* 黑洞终章状态复位 */
             game.outroStarted = false;
             game.outroTimer = 0;
+            game.redirectStarted = false;
             game.sceneStarted = false;
 
             game.state = 'play';
@@ -2425,6 +2261,7 @@
         function updateRipples(dt) {
             for (let i = game.ripples.length - 1; i >= 0; i--) {
                 const r = game.ripples[i];
+                if (r.maxLife === undefined) r.maxLife = r.life;
                 r.life -= dt * 1.6;
                 if (r.life <= 0) game.ripples.splice(i, 1);
             }
@@ -2632,7 +2469,7 @@
         }
 
         /* =========================================================
-           黑洞终章：不播放双星合并，直接奇点膨胀 → 跳转 ss.html
+           黑洞终章：不播放双星合并，直接奇点膨胀 → 跳转
            ========================================================= */
         function enterSingularity() {
             if (game.outroStarted || game.state !== 'play') return;
@@ -2674,6 +2511,34 @@
             game.shake = 20;
         }
 
+        function navigateToNextPage() {
+            if (!NEXT_PAGE_URL || game.redirectStarted) return;
+            game.redirectStarted = true;
+
+            const targetUrl = new URL(NEXT_PAGE_URL, document.baseURI).href;
+            const currentUrl = window.location.href;
+            const showFallback = () => {
+                document.getElementById('menuView').style.display = 'none';
+                document.getElementById('overView').style.display = '';
+                const overlay = document.getElementById('overlay');
+                overlay.classList.remove('poem-mode', 'hide');
+                overlay.classList.add('dim');
+                document.getElementById('overTitle').textContent = '无法自动跳转';
+                document.getElementById('result').innerHTML = `<span class="big">点击继续</span><a href="${targetUrl}" class="btn" style="display:inline-block;margin-top:20px;text-decoration:none;line-height:20px;">进入下一页面</a>`;
+            };
+
+            try {
+                window.location.href = targetUrl;
+            } catch (e) {
+                showFallback();
+                return;
+            }
+
+            setTimeout(() => {
+                if (window.location.href === currentUrl) showFallback();
+            }, 1200);
+        }
+
         function endWithNextScene() {
             if (game.sceneStarted) return;
             game.sceneStarted = true;
@@ -2686,22 +2551,10 @@
             resetStick();
 
             if (NEXT_PAGE_URL) {
-                setTimeout(() => { window.location.href = NEXT_PAGE_URL; }, 900);
-                return;
+                setTimeout(navigateToNextPage, 900);
+            } else {
+                game.state = 'next';
             }
-
-            buildNextStats();
-            nextSceneEl.classList.add('show');
-        }
-
-        function buildNextStats() {
-            const p = game.player;
-            const si = clamp(game.maxStage, 0, STAGES.length - 1);
-            nsStatsEl.innerHTML = `
-        <div class="ns-stat"><span class="k">终 焉 质 量</span><span class="v">${fmtMass(p.mass)}</span></div>
-        <div class="ns-stat"><span class="k">存 续 时 间</span><span class="v">${game.playTime.toFixed(1)}s</span></div>
-        <div class="ns-stat"><span class="k">最 高 阶 段</span><span class="v">${STAGES[si].name}</span></div>
-      `;
         }
 
         /* 旧版诗歌结局（保留，不再触发） */
@@ -2931,8 +2784,8 @@
             ctx.globalAlpha = 1;
 
             for (const rp of game.ripples) {
-                const k = 1 - rp.life;
-                const rad = lerp(rp.r, rp.max, k);
+                const k = clamp(1 - rp.life / rp.maxLife, 0, 1);
+                const rad = Math.max(0, lerp(rp.r, rp.max, k));
                 ctx.strokeStyle = rgba(rp.color, rp.life * 0.55);
                 ctx.lineWidth = Math.max(0.8, rp.life * rp.r * 0.22 + 0.7);
                 ctx.beginPath(); ctx.arc(rp.x, rp.y, rad, 0, TAU); ctx.stroke();
@@ -3106,7 +2959,7 @@
                 game.shake *= Math.pow(0.004, dt);
                 if (game.shake < 0.1) game.shake = 0;
             } else if (game.state === 'outro') {
-                /* ===== 黑洞终章：奇点膨胀 + 白闪，然后跳转到 ss.html ===== */
+                /* ===== 黑洞终章：奇点膨胀 + 白闪，然后跳转 ===== */
                 game.outroTimer -= dt;
 
                 const p = game.player;
@@ -3125,10 +2978,8 @@
 
                 if (game.outroTimer <= 0) {
                     if (NEXT_PAGE_URL) {
-                        window.location.href = NEXT_PAGE_URL;
+                        navigateToNextPage();
                     } else {
-                        buildNextStats();
-                        nextSceneEl.classList.add('show');
                         game.state = 'next';
                     }
                 }
@@ -3151,9 +3002,6 @@
         const fillEl = document.getElementById('fill');
         const cometEl = document.getElementById('cometCount');
         const hintEl = document.getElementById('hint');
-
-        const nextSceneEl = document.getElementById('nextScene');
-        const nsStatsEl = document.getElementById('nsStats');
 
         function fmtMass(m) {
             if (m < 1000) return m.toFixed(0);
@@ -3260,8 +3108,6 @@
             game.mouse.sy = H / 2;
             resetStick();
 
-            nextSceneEl.classList.remove('show');
-
             if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
                 game.controlMode = 'stick';
             } else {
@@ -3273,11 +3119,6 @@
 
         document.getElementById('startBtn').addEventListener('click', beginGame);
         document.getElementById('againBtn').addEventListener('click', beginGame);
-
-        document.getElementById('nsRestart').addEventListener('click', () => {
-            nextSceneEl.classList.remove('show');
-            beginGame();
-        });
 
         resize();
         preloadTextures();

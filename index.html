@@ -1150,7 +1150,7 @@
         function stickMaxR() {
             return Math.min(64, Math.min(W, H) * 0.14);
         }
-        const STICK_DEAD = 6;
+        const STICK_DEAD = 4;
 
         function updateStickFromPoint(px, py) {
             const s = game.stick;
@@ -1162,7 +1162,7 @@
             if (len > STICK_DEAD) {
                 s.dirX = dx / len;
                 s.dirY = dy / len;
-                s.strength = clamp((len - STICK_DEAD) / (maxR - STICK_DEAD), 0, 1);
+                s.strength = clamp((len - STICK_DEAD) / (maxR - STICK_DEAD) * 1.25, 0, 1);
             } else {
                 s.dirX = 0; s.dirY = 0; s.strength = 0;
             }
@@ -2072,7 +2072,9 @@
 
         function updateCamera(dt) {
             const p = game.player;
-            const targetZoom = clamp((W < 700 ? 52 : 80) / p.r, 0.05, 1.15);
+            const targetRadius = W < 700 ? 52 : 80;
+            const mobileZoom = W < 700 ? 0.88 : 1;
+            const targetZoom = clamp(mobileZoom * targetRadius / p.r, 0.05, 1.15);
 
             const lookX = p.x + p.vx * 0.12;
             const lookY = p.y + p.vy * 0.12;

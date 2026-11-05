@@ -1913,7 +1913,7 @@
             return pool[Math.floor(Math.random() * pool.length)];
         }
 
-        function spawnEnemy(initial) {
+        function spawnEnemy(initial, forceBlackHole = false) {
             const p = game.player;
             const zoom = game.cam.zoom;
             const baseR = Math.max(W, H) / (2 * zoom);
@@ -1924,7 +1924,9 @@
             const calm = initial || game.playTime < 4;
             let mass;
 
-            if (calm) {
+            if (forceBlackHole) {
+                mass = Math.max(STAGES[10].min * 1.05, p.mass * rand(0.75, 1.25));
+            } else if (calm) {
                 mass = p.mass * rand(0.02, 0.70);
             } else if (roll < 0.40) {
                 mass = p.mass * rand(0.008, 0.20);
@@ -2085,6 +2087,7 @@
         }
 
         function updatePlayer(dt) {
+            if (game.finale || game.outroStarted) return;
             const p = game.player;
             const zoom = game.cam.zoom;
 
@@ -2140,10 +2143,6 @@
                 });
                 addSparks(p.x, p.y, (CATALOG[ns][0] && CATALOG[ns][0].glow) || '#ffffff', 30);
 
-                if (ns >= 10 && !game.outroStarted) {
-                    enterSingularity();
-                    return;
-                }
             }
         }
 
@@ -2161,6 +2160,11 @@
                 const d = Math.hypot(dx, dy) || 1;
 
                 if (d < p.r + e.r) {
+                    if (stageOf(p.mass) >= 10 && stageOf(e.mass) >= 10) {
+                        startFinale(e);
+                        return;
+                    }
+
                     const ratio = p.mass / e.mass;
                     if (ratio > CAN_TEAR_RATIO) {
                         if (e.r < 4 || game.events.length >= 12) {
@@ -2182,10 +2186,6 @@
                         triggerPlayerShatter(p, e);
                     }
 
-                    if (!game.outroStarted && stageOf(p.mass) >= 10) {
-                        enterSingularity();
-                        return;
-                    }
                 }
 
                 if (e.debris) {
@@ -2300,6 +2300,10 @@
         function spawnLogic(dt) {
             if (game.finale || game.outroStarted) return;
 
+            if (stageOf(game.player.mass) >= 10 && !game.enemies.some(e => !e.dead && stageOf(e.mass) >= 10)) {
+                spawnEnemy(false, true);
+            }
+
             let alive = 0;
             for (let i = game.enemies.length - 1; i >= 0; i--) {
                 if (game.enemies[i].dead) game.enemies.splice(i, 1);
@@ -2341,10 +2345,11 @@
         /* =========================================================
            双星合并动画（已停用，保留以备恢复）
            ========================================================= */
-        function startFinale() {
-            if (game.finale || game.poemShown || game.sceneStarted) return;
+        function startFinale(source) {
+            if (game.finale || game.poemShown || game.sceneStarted || !source) return;
 
             const p = game.player;
+            if (stageOf(p.mass) < 10 || stageOf(source.mass) < 10) return;
             p.stage = 10;
             p.variant = 0;
 
@@ -2360,9 +2365,9 @@
             resetStick();
 
             const D0 = Math.max(p.r * 6.0, 200);
-            const partnerMass = p.mass * 0.86;
-
-            const partnerVariantIdx = Math.floor(Math.random() * CATALOG[10].length);
+            const partnerMass = source.mass;
+            const partnerVariantIdx = source.variant;
+            const partnerVariant = CATALOG[10][partnerVariantIdx] || CATALOG[10][0];
 
             const partner = {
                 x: p.x + Math.cos(ang) * D0,
@@ -2371,9 +2376,9 @@
                 r: radiusOf(partnerMass),
                 stage: 10,
                 variant: partnerVariantIdx,
-                label: CATALOG[10][partnerVariantIdx].label,
-                color: CATALOG[10][0].color,
-                glow: CATALOG[10][0].glow,
+                label: source.label || partnerVariant.label,
+                color: source.color || partnerVariant.color,
+                glow: source.glow || partnerVariant.glow,
                 angle: Math.random() * TAU,
                 spin: 0.6,
             };
@@ -2934,16 +2939,8 @@
             if (game.state === 'play') {
                 game.playTime += dt;
 
-                if (!game.outroStarted && game.player && game.player.mass >= 15000000) {
-                    enterSingularity();
-                }
-
                 updateCamera(dt);
                 updatePlayer(dt);
-
-                if (!game.outroStarted && game.player && stageOf(game.player.mass) >= 10) {
-                    enterSingularity();
-                }
 
                 if (!game.outroStarted) {
                     updateEnemies(dt);
@@ -2954,6 +2951,7 @@
                     updateSparks(dt);
                     updateRipples(dt);
                     spawnLogic(dt);
+                    if (game.finale) updateFinale(dt);
                     game.shake *= Math.pow(0.004, dt);
                     if (game.shake < 0.1) game.shake = 0;
                     updateHUD();

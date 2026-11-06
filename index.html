@@ -2426,7 +2426,7 @@
             const removeDist2 = viewR * viewR * 9;
             const activeDist2 = viewR * viewR * 2.25;
             const debrisRemoveDist2 = viewR * viewR * 20.25;
-            const npcDamp = dt >= 1 ? 0.72 : Math.exp(-0.328504066972036 * dt);
+                const npcDamp = dt >= 1 ? 0.76 : Math.exp(-0.2744368457017603 * dt);
             const debrisDamp = dt >= 1 ? 0.55 : Math.exp(-0.59783700075562 * dt);
 
             for (let i = game.enemies.length - 1; i >= 0; i--) {
@@ -2543,7 +2543,7 @@
                     }
 
                     if (urgency > 0) {
-                        const steering = 34 + urgency * 48;
+                    const steering = (34 + urgency * 48) * 0.85;
                         e.vx += targetX * steering;
                         e.vy += targetY * steering;
                     }
@@ -2551,7 +2551,7 @@
                 }
 
                 e.vx *= npcDamp; e.vy *= npcDamp;
-                e.x += e.vx * dt * 0.62; e.y += e.vy * dt * 0.62;
+                e.x += e.vx * dt * 0.54; e.y += e.vy * dt * 0.54;
                 e.angle += e.spin * dt;
 
                 if (d > viewR * 2.8) game.enemies.splice(i, 1);
@@ -2687,14 +2687,20 @@
                 r: radiusOf(partnerMass),
                 stage: 10,
                 variant: partnerVariantIdx,
-                label: source.label || partnerVariant.label,
-                color: source.color || partnerVariant.color,
-                glow: source.glow || partnerVariant.glow,
+                label: partnerVariant.label,
+                color: partnerVariant.color,
+                glow: partnerVariant.glow,
                 angle: Math.random() * TAU,
                 spin: 0.6,
             };
 
             const mt = p.mass + partnerMass;
+            const playerVariantIdx = Math.floor(Math.random() * CATALOG[10].length);
+            const playerVariant = CATALOG[10][playerVariantIdx];
+            p.variant = playerVariantIdx;
+            p.label = playerVariant.label;
+            p.color = playerVariant.color;
+            p.glow = playerVariant.glow;
             game.finale = {
                 phase: 'inspiral',
                 t: 0,

@@ -234,6 +234,57 @@
             margin: 0 auto;
         }
 
+        .mass-input-wrap {
+            width: min(280px, 82vw);
+            margin: 0 auto 16px;
+            text-align: left;
+        }
+
+        #menuView .desc {
+            margin-bottom: clamp(12px, 2.5vh, 20px);
+        }
+
+        .mass-input-wrap label {
+            display: block;
+            margin-bottom: 7px;
+            color: rgba(190, 215, 255, .82);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        #initialMassInput {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            border: 1px solid rgba(110, 180, 255, .4);
+            border-radius: 4px;
+            outline: none;
+            background: rgba(4, 10, 28, .72);
+            color: #e6f3ff;
+            font: inherit;
+            font-size: 16px;
+        }
+
+        #initialMassInput:focus {
+            border-color: #7cc4ff;
+            box-shadow: 0 0 18px rgba(80, 170, 255, .2);
+        }
+
+        #massInputError {
+            min-height: 1.5em;
+            margin-top: 5px;
+            color: #ffb38a;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        #massInputRange {
+            margin-top: 5px;
+            color: rgba(160, 195, 255, .6);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
         .menu-quote {
             display: block;
             width: min(520px, 90vw);
@@ -404,6 +455,12 @@
                 在微小的沙粒中，也藏着鲜为人知的壮丽诗篇<b>
                     <br>
                     <b>行星 → 恒星 → 中子星 → 黑洞</b>
+            </div>
+            <div class="mass-input-wrap">
+                <label for="initialMassInput">设置初始天体质量</label>
+                <input id="initialMassInput" type="number" inputmode="decimal" min="1" max="14999999" step="any" value="100" aria-describedby="massInputRange massInputError">
+                <div id="massInputRange"></div>
+                <div id="massInputError" aria-live="polite"></div>
             </div>
             <button class="btn" id="startBtn" type="button">开 始 演 化</button>
             <div class="menu-quote" id="menuQuote" aria-live="polite">微小的起点，也能走向辽阔的星海。</div>
@@ -2067,20 +2124,50 @@
             game.comets.push(new Comet(x, y, Math.cos(toPlayer) * spd, Math.sin(toPlayer) * spd));
         }
 
-        const INITIAL_MASS = 400;
+        const INITIAL_MASS = 100;
+        const MAX_INITIAL_MASS = STAGES[10].min - 1;
+        let selectedInitialMass = INITIAL_MASS;
+
+        function formatMassRange(value) {
+            let stageIndex = 0;
+            while (stageIndex + 1 < STAGES.length && value >= STAGES[stageIndex + 1].min) stageIndex++;
+            const stage = STAGES[stageIndex];
+            const nextStage = STAGES[stageIndex + 1];
+            return nextStage
+                ? `当前阶段：${stage.name}（${fmtMass(stage.min)}–${fmtMass(nextStage.min - 1)}），范围：1–${fmtMass(MAX_INITIAL_MASS)}。`
+                : `当前阶段：${stage.name}（${fmtMass(stage.min)} 以上）。`;
+        }
+
+        function updateMassInputRange(value) {
+            document.getElementById('massInputRange').textContent = Number.isFinite(value) && value >= 1
+                ? formatMassRange(value)
+                : `范围：1–${fmtMass(MAX_INITIAL_MASS)}；阶段阈值与游戏内一致。`;
+        }
 
         function resetGame() {
+            const initialStage = stageOf(selectedInitialMass);
+            const initialVariant = 0;
+            const initialBody = CATALOG[initialStage][initialVariant];
             const p = {
                 x: 0, y: 0, vx: 0, vy: 0,
-                mass: INITIAL_MASS,
-                r: radiusOf(INITIAL_MASS),
+                mass: selectedInitialMass,
+                r: radiusOf(selectedInitialMass),
                 angle: 0,
-                stage: 0,
-                variant: 0,
+                stage: initialStage,
+                variant: initialVariant,
                 pulse: 0,
-                label: '',
+                label: initialBody.label,
+                color: initialBody.color,
+                glow: initialBody.glow,
                 isPlayer: true,
             };
+            if (initialStage >= 10) {
+                p.variant = Math.floor(Math.random() * CATALOG[10].length);
+                const blackHole = CATALOG[10][p.variant];
+                p.label = blackHole.label;
+                p.color = blackHole.color;
+                p.glow = blackHole.glow;
+            }
             game.player = p;
             game.enemies = [];
             game.comets = [];
@@ -2095,7 +2182,7 @@
             game.cometSpawnTimer = 0;
             game.meteorSpawnTimer = 2.5;
             game.showerTimer = rand(15, 25);
-            game.maxStage = 0;
+            game.maxStage = initialStage;
             game.finale = null;
             game.poemShown = false;
             game.deathTimer = 0;
@@ -2488,6 +2575,7 @@
                     e.vy += (dy / d) * pullForce;
                 }
 
+                e.playerChaseTimer = Math.max(0, (e.playerChaseTimer || 0) - dt);
                 e.aiTimer = (e.aiTimer || 0) - dt;
 
                 if (e.aiTimer <= 0) {
@@ -2495,10 +2583,10 @@
                     const playerThreat = e.mass > p.mass * 1.08;
                     const playerCanEat = p.mass > e.mass * 1.18;
 
-                    if (d < viewR * 1.25 && playerThreat) {
+                    if (e.playerChaseTimer > 0 && d < viewR * 1.25 && playerThreat) {
                         targetX = dx / d;
                         targetY = dy / d;
-                        urgency = 1.0;
+                        urgency = 0.72;
                     } else if (d < viewR * 1.25 && playerCanEat && e.aiMode === 'orbit') {
                         targetX = -dx / d;
                         targetY = -dy / d;
@@ -2529,6 +2617,7 @@
                             targetX = (prey.x - e.x) / pd;
                             targetY = (prey.y - e.y) / pd;
                             urgency = 0.72;
+                            e.playerChaseTimer = 0;
                         } else if (largerThreat && nearestLargerDist2 < viewR * viewR * 0.2) {
                             const td = Math.sqrt(nearestLargerDist2) || 1;
                             targetX = (e.x - largerThreat.x) / td;
@@ -2542,8 +2631,15 @@
                         }
                     }
 
+                    if (d < viewR * 1.25 && playerThreat && e.playerChaseTimer <= 0 && Math.random() < 0.18) {
+                        e.playerChaseTimer = rand(1.2, 2.4);
+                        targetX = dx / d;
+                        targetY = dy / d;
+                        urgency = 0.72;
+                    }
+
                     if (urgency > 0) {
-                    const steering = (34 + urgency * 48) * 0.85;
+                        const steering = (34 + urgency * 48) * 0.85;
                         e.vx += targetX * steering;
                         e.vy += targetY * steering;
                     }
@@ -3523,6 +3619,18 @@
         }
 
         function beginGame() {
+            const massInput = document.getElementById('initialMassInput');
+            const massInputError = document.getElementById('massInputError');
+            const inputMass = massInput.valueAsNumber;
+            updateMassInputRange(inputMass);
+            if (!Number.isFinite(inputMass) || inputMass < 1 || inputMass >= STAGES[10].min) {
+                massInputError.textContent = `请输入 1 到 ${fmtMass(MAX_INITIAL_MASS)}；开局质量不能达到黑洞阶段。`;
+                massInput.focus();
+                return;
+            }
+            selectedInitialMass = inputMass;
+            massInputError.textContent = '';
+
             overlayEl.classList.remove('poem-mode');
             overlayEl.classList.remove('dim');
             overlayEl.classList.add('hide');
@@ -3546,8 +3654,13 @@
 
         document.getElementById('startBtn').addEventListener('click', beginGame);
         document.getElementById('againBtn').addEventListener('click', beginGame);
+        document.getElementById('initialMassInput').addEventListener('input', () => {
+            document.getElementById('massInputError').textContent = '';
+            updateMassInputRange(document.getElementById('initialMassInput').valueAsNumber);
+        });
 
         resize();
+        updateMassInputRange(INITIAL_MASS);
         showMenu();
         requestAnimationFrame(loop);
         try {

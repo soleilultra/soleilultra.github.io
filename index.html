@@ -1665,10 +1665,12 @@
             if (!target || target.dead) return;
             const originalMass = target.mass;
             const lethal = violent && impactMass >= originalMass * 2.2;
-            const lostMass = originalMass * (lethal ? rand(0.78, 0.88) : violent ? rand(0.24, 0.38) : rand(0.08, 0.16));
-            const remainingMass = originalMass - lostMass;
-            const maxFragments = Math.max(1, 90 - game.enemies.length);
+            const maxFragments = Math.max(0, 90 - game.enemies.length);
             const fragmentCount = Math.min(maxFragments, violent ? Math.floor(rand(4, 7)) : Math.floor(rand(2, 5)));
+            const lostMass = fragmentCount > 0
+                ? originalMass * (lethal ? rand(0.78, 0.88) : violent ? rand(0.24, 0.38) : rand(0.08, 0.16))
+                : 0;
+            const remainingMass = originalMass - lostMass;
             const fragmentMass = fragmentCount ? lostMass / fragmentCount : 0;
             const impactAngle = Math.atan2(impactVy, impactVx);
 
@@ -1741,7 +1743,7 @@
                 const dx = targetX - startX, dy = targetY - startY;
                 const dist = Math.hypot(dx, dy) || 1;
                 this.angle = Math.atan2(dy, dx);
-                this.speed = rand(1200, 1700) * speedScale;
+                this.speed = rand(800, 1200) * speedScale;
                 this.vx = (dx / dist) * this.speed;
                 this.vy = (dy / dist) * this.speed;
                 const pathRoll = Math.random();
@@ -1767,8 +1769,7 @@
                 }
 
                 if (this.curve) {
-                    const speed = Math.hypot(this.vx, this.vy) || 1;
-                    const turn = this.curve / speed * dt;
+                    const turn = this.curve / this.speed * dt;
                     const cosTurn = Math.cos(turn), sinTurn = Math.sin(turn);
                     const vx = this.vx, vy = this.vy;
                     this.vx = vx * cosTurn - vy * sinTurn;
@@ -1777,14 +1778,21 @@
                 }
                 const nextX = this.x + this.vx * dt;
                 const nextY = this.y + this.vy * dt;
+                const segmentX = nextX - this.x;
+                const segmentY = nextY - this.y;
+                const segmentLength2 = segmentX * segmentX + segmentY * segmentY;
+                const inverseSegmentLength2 = segmentLength2 > 0 ? 1 / segmentLength2 : 0;
 
                 const p = game.player;
-                const playerDx = p.x - nextX, playerDy = p.y - nextY;
+                const playerT = clamp(((p.x - this.x) * segmentX + (p.y - this.y) * segmentY) * inverseSegmentLength2, 0, 1);
+                const playerHitX = this.x + segmentX * playerT;
+                const playerHitY = this.y + segmentY * playerT;
+                const playerDx = p.x - playerHitX, playerDy = p.y - playerHitY;
                 if (!this.containsHitTarget(p) && playerDx * playerDx + playerDy * playerDy < (p.r + this.r) * (p.r + this.r)) {
                     const impactMass = this.mass + p.mass * Math.min(0.24, this.speed / 6500);
                     const violent = this.r >= p.r * 0.72;
                     if (violent && impactMass >= p.mass * 2.2) {
-                        fragmentPlanet(p, nextX, nextY, this.vx, this.vy, impactMass, !this.penetrates);
+                        fragmentPlanet(p, playerHitX, playerHitY, this.vx, this.vy, impactMass, !this.penetrates);
                         game.shake = 16;
                         if (!this.penetrates) {
                             gameOver();
@@ -1792,26 +1800,31 @@
                             return;
                         }
                     } else if (violent) {
-                        if (this.penetrates) fragmentPlanet(p, nextX, nextY, this.vx, this.vy, impactMass, false);
-                        else triggerPlayerShatter(p, { x: nextX, y: nextY, r: this.r, color: '#ff9a4c', vx: this.vx, vy: this.vy, mass: impactMass });
+                        if (this.penetrates) fragmentPlanet(p, playerHitX, playerHitY, this.vx, this.vy, impactMass, false);
+                        else triggerPlayerShatter(p, { x: playerHitX, y: playerHitY, r: this.r, color: '#ff9a4c', vx: this.vx, vy: this.vy, mass: impactMass });
                     } else {
-                        fragmentPlanet(p, nextX, nextY, this.vx, this.vy, impactMass, false);
+                        fragmentPlanet(p, playerHitX, playerHitY, this.vx, this.vy, impactMass, false);
                     }
                     if (!this.penetrates) {
                         this.dead = true;
                         return;
                     }
-                this.hitTargets[this.hitTargetCount++] = p;
+                    this.hitTargets[this.hitTargetCount++] = p;
                 }
 
-                for (const target of game.enemies) {
+                const enemyCount = game.enemies.length;
+                for (let i = 0; i < enemyCount; i++) {
+                    const target = game.enemies[i];
                     if (!target || target.dead || this.containsHitTarget(target)) continue;
-                    const dx = target.x - nextX, dy = target.y - nextY;
+                    const targetT = clamp(((target.x - this.x) * segmentX + (target.y - this.y) * segmentY) * inverseSegmentLength2, 0, 1);
+                    const hitX = this.x + segmentX * targetT;
+                    const hitY = this.y + segmentY * targetT;
+                    const dx = target.x - hitX, dy = target.y - hitY;
                     if (dx * dx + dy * dy >= (target.r + this.r) * (target.r + this.r)) continue;
 
                     const impactMass = this.mass + target.mass * Math.min(0.24, this.speed / 6500);
                     const violent = this.r >= target.r * 0.72;
-                    fragmentPlanet(target, nextX, nextY, this.vx, this.vy, impactMass, violent);
+                    fragmentPlanet(target, hitX, hitY, this.vx, this.vy, impactMass, violent);
                     this.penetrationCount++;
                     this.hitTargets[this.hitTargetCount++] = target;
                     if (!this.penetrates) {
@@ -1826,8 +1839,9 @@
                 this.trail.unshift({ x: this.x, y: this.y });
                 if (this.trail.length > this.maxTrail) this.trail.pop();
 
-                const viewR = Math.max(W, H) / (2 * game.cam.zoom);
-                if (Math.hypot(this.x - p.x, this.y - p.y) > viewR * 3.5) this.dead = true;
+                const viewR = Math.max(W, H) / (2 * game.cam.zoom) * 3.5;
+                const dx = this.x - p.x, dy = this.y - p.y;
+                if (dx * dx + dy * dy > viewR * viewR) this.dead = true;
             }
 
             containsHitTarget(target) {
@@ -1939,30 +1953,21 @@
                 this.mass = Math.max(12, this.r * this.r * rand(10, 18));
                 this.trail = [];
                 this.maxTrail = 14;
+                this.moveFactor = 0.75;
             }
 
             update(dt) {
                 const p = game.player;
 
                 if (this.state === 'free') {
-                    this.x += this.vx * dt;
-                    this.y += this.vy * dt;
+                    this.x += this.vx * dt * this.moveFactor;
+                    this.y += this.vy * dt * this.moveFactor;
 
                     const dx = this.x - p.x, dy = this.y - p.y;
-                    const dist = Math.hypot(dx, dy);
+                    const dist2 = dx * dx + dy * dy;
+                    const playerHitRadius = p.r + this.r * 0.5;
 
-                    if (dist < p.r + this.r * 0.5) {
-                    if ((p.invulnerableTimer || 0) > 0) {
-                        this.dead = true;
-                        p.mass += this.mass * 0.9;
-                        p.r = radiusOf(p.mass);
-                        syncPlayerStage(p);
-                        p.pulse = 1;
-                        addSparks(this.x, this.y, '#90e0ff', 12);
-                        addCollisionRipple(this.x, this.y, this.r, '#90e0ff');
-                        return;
-                    }
-
+                    if (dist2 < playerHitRadius * playerHitRadius) {
                         this.dead = true;
                         p.mass = Math.max(10, p.mass - 150);
                         p.r = radiusOf(p.mass);
@@ -1972,9 +1977,10 @@
                         return;
                     }
 
-                    if (dist < p.r * 3.8 && dist > p.r * 1.1) {
+                    const orbitMin = p.r * 1.1, orbitMax = p.r * 3.8;
+                    if (dist2 < orbitMax * orbitMax && dist2 > orbitMin * orbitMin) {
                         this.state = 'orbit';
-                        this.orbitRadius = dist;
+                        this.orbitRadius = Math.sqrt(dist2);
                         this.orbitAngle = Math.atan2(dy, dx);
                         this.orbitSpeed = rand(2.5, 4.0) * (Math.random() < 0.5 ? 1 : -1);
                         game.ripples.push({ x: this.x, y: this.y, r: 5, max: 45, life: 0.8, color: '#7ce4ff' });
@@ -1991,9 +1997,8 @@
                     for (const e of game.enemies) {
                         if (e.dead) continue;
                         const edx = e.x - this.x, edy = e.y - this.y;
-                        const edist = Math.hypot(edx, edy);
-
-                        if (edist < e.r + this.r) {
+                        const hitRadius = e.r + this.r;
+                        if (edx * edx + edy * edy < hitRadius * hitRadius) {
                             const impactMass = this.mass + e.mass * 0.12;
                             const violent = this.r >= e.r * 0.72;
                             fragmentPlanet(e, this.x, this.y, this.vx, this.vy, impactMass, violent);
@@ -2058,11 +2063,11 @@
             const x = p.x + Math.cos(ang) * spawnDist;
             const y = p.y + Math.sin(ang) * spawnDist;
             const toPlayer = Math.atan2(p.y - y, p.x - x) + rand(-0.4, 0.4);
-            const spd = rand(260, 420);
+            const spd = rand(200, 320);
             game.comets.push(new Comet(x, y, Math.cos(toPlayer) * spd, Math.sin(toPlayer) * spd));
         }
 
-        const INITIAL_MASS = 40000;
+        const INITIAL_MASS = 200;
 
         function resetGame() {
             const p = {
@@ -2418,18 +2423,28 @@
 
             const p = game.player;
             const viewR = Math.max(W, H) / (2 * game.cam.zoom);
+            const removeDist2 = viewR * viewR * 9;
+            const activeDist2 = viewR * viewR * 2.25;
+            const debrisRemoveDist2 = viewR * viewR * 20.25;
+            const npcDamp = dt >= 1 ? 0.72 : Math.exp(-0.328504066972036 * dt);
+            const debrisDamp = dt >= 1 ? 0.55 : Math.exp(-0.59783700075562 * dt);
 
             for (let i = game.enemies.length - 1; i >= 0; i--) {
                 const e = game.enemies[i];
                 if (e.dead) { game.enemies.splice(i, 1); continue; }
 
                 const dx = p.x - e.x, dy = p.y - e.y;
-                const d = Math.hypot(dx, dy) || 1;
+                const d2 = dx * dx + dy * dy;
+                if (e.debris && d2 > debrisRemoveDist2) {
+                    game.enemies.splice(i, 1);
+                    continue;
+                }
 
-                if (d > viewR * 3) { game.enemies.splice(i, 1); continue; }
-                if (d > viewR * 1.5) continue;
+                if (!e.debris && d2 > removeDist2) { game.enemies.splice(i, 1); continue; }
+                const d = Math.sqrt(d2) || 1;
 
-                if (d < p.r + e.r) {
+                const collisionRadius = p.r + e.r;
+                if (d2 < collisionRadius * collisionRadius) {
                     if (stageOf(p.mass) >= 10 && stageOf(e.mass) >= 10) {
                         startFinale(e);
                         return;
@@ -2460,12 +2475,12 @@
                     e.vx += (dx / d) * pull * dt;
                     e.vy += (dy / d) * pull * dt;
                     e.angle += e.spin * dt;
-                    const dampD = Math.pow(0.55, dt);
-                    e.vx *= dampD; e.vy *= dampD;
-                    e.x += e.vx * dt * 0.75; e.y += e.vy * dt * 0.75;
-                    if (d > viewR * 4.5) game.enemies.splice(i, 1);
+                    e.vx *= debrisDamp; e.vy *= debrisDamp;
+                    e.x += e.vx * dt * 0.62; e.y += e.vy * dt * 0.62;
                     continue;
                 }
+
+                if (d2 > activeDist2) continue;
 
                 if (d > viewR * 1.3) {
                     const pullForce = (d - viewR * 1.25) * 1.2 * dt;
@@ -2532,11 +2547,10 @@
                         e.vx += targetX * steering;
                         e.vy += targetY * steering;
                     }
-                    e.aiTimer = rand(0.8, 1.8);
+                    e.aiTimer = rand(1.2, 2.2);
                 }
 
-                const damp = Math.pow(0.72, dt);
-                e.vx *= damp; e.vy *= damp;
+                e.vx *= npcDamp; e.vy *= npcDamp;
                 e.x += e.vx * dt * 0.62; e.y += e.vy * dt * 0.62;
                 e.angle += e.spin * dt;
 
